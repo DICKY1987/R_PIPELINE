@@ -1,0 +1,1165 @@
+version: 1.0
+plan:
+  plan_instance_id: "{ULID()}"  # Generated at plan creation
+  plan_lineage_id: "e7f8a9b0-c1d2-5e3f-4a5b-6c7d8e9f0a1b"  # UUIDv5("plan:proven_devops_patterns_integration")
+  plan_version: "2025.10.26+rev1"
+  created_at: "{iso8601}"
+
+  meta:
+    title: "Proven DevOps Patterns Integration Plan"
+    description: "Integration of battle-tested patterns from invoke, tox, watchdog, GitHub Actions, and Git into the AI-Operated Pipeline"
+    source_documents:
+      - "evidence.jsonl"
+      - "Proven DevOps Patterns for AI-Operated Pipeline.pdf"
+    total_phases: 6
+    total_weeks: 3
+    priority_level: "high"
+
+  # Deterministic naming for branches/worktrees
+  branch_template: "{lane}/{phase_seq}-{phase_key}/{module_id}/{wsid}"
+  worktree_path_template: "/tmp/worktrees/{wsid}"
+
+  # Global defaults
+  defaults:
+    lifecycle:
+      auto_remove_on_complete: true
+      remove_on_fail: false  # Keep for debugging
+      prune_stale: true
+      stale_threshold_hours: 24
+    routing:
+      queue_prefix: "q"
+      ledger_path: "/.runs/ledger.jsonl"
+    constraints:
+      max_parallel_per_module: 1
+      deny_overlapping_path_claims: true
+      max_runtime_sec: 3600
+    validation:
+      require_tests: true
+      min_coverage_percent: 80
+      require_lint_pass: true
+
+  merge_policy:
+    target_branch: "main"
+    checks:
+      - name: "ci/format"
+        required: true
+      - name: "ci/lint"
+        required: true
+      - name: "ci/typecheck"
+        required: true
+      - name: "ci/test"
+        required: true
+      - name: "ci/integration"
+        required: false
+    strategy: "squash"
+    auto_delete_branch: true
+
+# ============================================================================
+# PHASE 1: FOUNDATION REFACTORING (Week 1)
+# ============================================================================
+
+phases:
+  - phase_seq: 1
+    phase_key: "foundation_refactoring"
+    phase_lineage_id: "a1b2c3d4-e5f6-5789-0abc-def012345678"  # UUIDv5("phase:foundation_refactoring")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "critical"
+
+    description: |
+      Implement core infrastructure improvements based on proven patterns:
+      - Incremental task execution (skip unchanged work)
+      - Asynchronous event handling for file watcher
+      - Structured logging with JSON schemas
+
+    exit_criteria:
+      - id: "EC-P1-1"
+        metric_key: "watcher.latency_p95_ms"
+        target: 2000
+        description: "Watcher detects file saves with p95 latency < 2s"
+
+      - id: "EC-P1-2"
+        metric_key: "watcher.skip_unchanged_percent"
+        target: 95
+        description: "95% of unchanged files skip re-validation"
+
+      - id: "EC-P1-3"
+        metric_key: "log.schema_compliance_percent"
+        target: 100
+        description: "100% of log entries conform to JSON schema"
+
+      - id: "EC-P1-4"
+        metric_key: "watcher.event_loss_percent"
+        target: 0
+        description: "Zero file events lost during rapid changes"
+
+    metrics:
+      - key: "watcher.latency_p95_ms"
+        target: 2000
+        unit: "milliseconds"
+
+      - key: "watcher.skip_unchanged_percent"
+        target: 95
+        unit: "percent"
+
+      - key: "log.schema_compliance_percent"
+        target: 100
+        unit: "percent"
+
+      - key: "build.cache_hit_rate"
+        target: 80
+        unit: "percent"
+
+    risks:
+      - key: "fs-notify-duplicate-events"
+        severity: "medium"
+        mitigation: "Implement 300ms debounce with stability check"
+
+      - key: "async-event-race-condition"
+        severity: "high"
+        mitigation: "Use PowerShell runspace with mutex for event handling"
+
+      - key: "incremental-cache-invalidation"
+        severity: "medium"
+        mitigation: "Use file content hashing (not timestamps) for cache keys"
+
+# ============================================================================
+# PHASE 1 WORKSTREAMS
+# ============================================================================
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS1.1: Incremental Task Execution
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p1-incremental-tasks"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 1
+      phase_instance_id: "{ref:phases[0].phase_instance_id}"
+
+    module_ref:
+      module_key: "Streamlined_Watcher"
+      module_id: "SW-1A0"
+      role: "build_orchestrator"
+
+    title: "Incremental Task Skip Implementation"
+    description: |
+      Implement Invoke-Build incremental tasks with -Inputs/-Outputs parameters.
+      Based on proven patterns from Invoke-Build and pydoit for skipping unchanged work.
+
+    pattern_references:
+      - pattern_id: "incremental_build_dag"
+        source: "evidence.jsonl#9-16"
+        repositories: ["nightroman/Invoke-Build", "pydoit"]
+
+    branch: "{lane}/1-foundation/SW-1A0/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "watcher/build.ps1"
+      - ".runs/cache/**"
+      - "watcher/README.md"
+
+    inputs:
+      pattern_docs:
+        - "Proven DevOps Patterns for AI-Operated Pipeline.pdf#page=6-7"
+      existing_files:
+        - "watcher/build.ps1"
+      config:
+        cache_dir: ".runs/cache"
+        hash_algorithm: "blake3"
+
+    outputs:
+      modified_files:
+        - "watcher/build.ps1"
+      new_files:
+        - ".runs/cache/.gitkeep"
+        - "watcher/cache_policy.md"
+      test_files:
+        - "tests/unit/test_incremental_tasks.ps1"
+
+    constraints:
+      exclusive: true
+      max_runtime_sec: 1800
+      requires_modules: []
+
+    lifecycle:
+      auto_remove_on_complete: true
+      remove_on_fail: false
+
+    merge_policy:
+      target: "main"
+      after_checks: ["ci/format", "ci/lint", "ci/test"]
+      require_review: true
+
+    implementation_steps:
+      - step: 1
+        action: "Add -Inputs and -Outputs parameters to check.one task"
+        files: ["watcher/build.ps1"]
+
+      - step: 2
+        action: "Create cache directory structure"
+        files: [".runs/cache/"]
+
+      - step: 3
+        action: "Implement file hash comparison logic"
+        files: ["watcher/build.ps1"]
+
+      - step: 4
+        action: "Add cache invalidation on force flag"
+        files: ["watcher/build.ps1"]
+
+      - step: 5
+        action: "Write unit tests for cache behavior"
+        files: ["tests/unit/test_incremental_tasks.ps1"]
+
+    pin_files:
+      - role: "runner"
+        path: "watcher/build.ps1"
+        module_file_id: "{mfid_from_index}"
+
+      - role: "config"
+        path: "watcher/watch.config.json"
+        module_file_id: "{mfid_from_index}"
+
+  # --------------------------------------------------------------------------
+  # WS1.2: Asynchronous Event Handling
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p1-async-events"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 1
+      phase_instance_id: "{ref:phases[0].phase_instance_id}"
+
+    module_ref:
+      module_key: "Streamlined_Watcher"
+      module_id: "SW-1A0"
+      role: "file_observer"
+
+    title: "PowerShell Engine Event Queue Integration"
+    description: |
+      Replace synchronous event loop with Register-ObjectEvent for FileSystemWatcher.
+      Prevents lost events during rapid file changes.
+
+    pattern_references:
+      - pattern_id: "powershell_event_queue"
+        source: "Proven DevOps Patterns PDF#page=10,26"
+        repositories: ["PowerShell/PowerShell"]
+
+    branch: "{lane}/1-foundation/SW-1A0-events/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "watcher/watch.ps1"
+      - "watcher/watch.config.json"
+
+    inputs:
+      pattern_docs:
+        - "Proven DevOps Patterns for AI-Operated Pipeline.pdf#page=26-27"
+      debounce_ms: 300
+      stability_check_ms: 100
+
+    outputs:
+      modified_files:
+        - "watcher/watch.ps1"
+        - "watcher/watch.config.json"
+      test_files:
+        - "tests/integration/test_rapid_file_changes.ps1"
+
+    constraints:
+      exclusive: true
+      max_runtime_sec: 1200
+
+    lifecycle:
+      auto_remove_on_complete: true
+      remove_on_fail: false
+
+    implementation_steps:
+      - step: 1
+        action: "Replace event loop with Register-ObjectEvent"
+        files: ["watcher/watch.ps1"]
+
+      - step: 2
+        action: "Add debounce timer using scriptblock"
+        files: ["watcher/watch.ps1"]
+
+      - step: 3
+        action: "Implement stability check before triggering build"
+        files: ["watcher/watch.ps1"]
+
+      - step: 4
+        action: "Add configuration for debounce/stability timings"
+        files: ["watcher/watch.config.json"]
+
+      - step: 5
+        action: "Create integration test for rapid saves"
+        files: ["tests/integration/test_rapid_file_changes.ps1"]
+
+    pin_files:
+      - role: "runner"
+        path: "watcher/watch.ps1"
+        module_file_id: "{mfid_from_index}"
+
+  # --------------------------------------------------------------------------
+  # WS1.3: Structured Result Logging
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p1-structured-logging"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 1
+      phase_instance_id: "{ref:phases[0].phase_instance_id}"
+
+    module_ref:
+      module_key: "Observability"
+      module_id: "OB-6W1"
+      role: "logger"
+
+    title: "Structured JSON Logging with Schema Validation"
+    description: |
+      Define JSON schema for log entries and enforce it across all watcher operations.
+      Based on Python logging patterns and PowerShell ErrorRecord structure.
+
+    pattern_references:
+      - pattern_id: "structured_logging"
+        source: "Proven DevOps Patterns PDF#page=13-14,27-28"
+        repositories: ["python/cpython", "PowerShell/PowerShell"]
+
+    branch: "{lane}/1-foundation/OB-6W1/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "watcher/build.ps1"
+      - "policy/schemas/watcher_result.schema.json"
+      - ".runs/watch/**"
+
+    inputs:
+      schema_examples:
+        - type: "python_logging_dictConfig"
+        - type: "powershell_errorrecord"
+
+    outputs:
+      new_files:
+        - "policy/schemas/watcher_result.schema.json"
+        - "scripts/logging/New-StructuredLogEntry.ps1"
+      modified_files:
+        - "watcher/build.ps1"
+      test_files:
+        - "tests/unit/test_log_schema_compliance.ps1"
+
+    constraints:
+      exclusive: false
+      max_runtime_sec: 1200
+
+    implementation_steps:
+      - step: 1
+        action: "Define watcher_result.schema.json"
+        files: ["policy/schemas/watcher_result.schema.json"]
+
+      - step: 2
+        action: "Create PowerShell logging helper function"
+        files: ["scripts/logging/New-StructuredLogEntry.ps1"]
+
+      - step: 3
+        action: "Modify check.one to output structured results"
+        files: ["watcher/build.ps1"]
+
+      - step: 4
+        action: "Add schema validation on log write"
+        files: ["watcher/build.ps1"]
+
+      - step: 5
+        action: "Create unit tests for schema compliance"
+        files: ["tests/unit/test_log_schema_compliance.ps1"]
+
+    pin_files:
+      - role: "schema"
+        path: "policy/schemas/watcher_result.schema.json"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# PHASE 2: QUALITY GATES AUTOMATION (Week 1)
+# ============================================================================
+
+phases:
+  - phase_seq: 2
+    phase_key: "quality_gates_automation"
+    phase_lineage_id: "b2c3d4e5-f6a7-5890-1bcd-ef0123456789"  # UUIDv5("phase:quality_gates_automation")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "high"
+
+    description: |
+      Integrate pre-commit hooks for automated quality enforcement.
+      Implement commit message linting for Conventional Commits.
+
+    exit_criteria:
+      - id: "EC-P2-1"
+        metric_key: "hooks.installation_success_rate"
+        target: 100
+        description: "Pre-commit hooks install successfully on all dev machines"
+
+      - id: "EC-P2-2"
+        metric_key: "commits.conventional_compliance_percent"
+        target: 95
+        description: "95% of commits follow Conventional Commits spec"
+
+      - id: "EC-P2-3"
+        metric_key: "hooks.rejection_accuracy_percent"
+        target: 100
+        description: "No false positives/negatives in hook validation"
+
+    metrics:
+      - key: "hooks.installation_success_rate"
+        target: 100
+        unit: "percent"
+
+      - key: "commits.conventional_compliance_percent"
+        target: 95
+        unit: "percent"
+
+    risks:
+      - key: "hook-bypass"
+        severity: "medium"
+        mitigation: "Enforce in CI as backup; document bypass consequences"
+
+      - key: "powershell-cross-platform"
+        severity: "low"
+        mitigation: "Use PowerShell 7+ for cross-platform support"
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS2.1: Pre-Commit Hooks Integration
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p2-precommit-hooks"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 2
+      phase_instance_id: "{ref:phases[1].phase_instance_id}"
+
+    module_ref:
+      module_key: "CI_PreCommit_Integrator"
+      module_id: "CI-6E2"
+      role: "hook_manager"
+
+    title: "Pre-Commit Framework Integration"
+    description: |
+      Add .pre-commit-config.yaml with hooks for Black, Ruff, PSScriptAnalyzer,
+      and custom watcher validation.
+
+    pattern_references:
+      - pattern_id: "git_hooks_precommit"
+        source: "Proven DevOps Patterns PDF#page=15,28"
+        repositories: ["pre-commit/pre-commit", "git/git"]
+
+    branch: "{lane}/2-quality/CI-6E2/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - ".pre-commit-config.yaml"
+      - "scripts/hooks/**"
+      - "docs/CONTRIBUTING.md"
+
+    inputs:
+      hook_configs:
+        - name: "black"
+          language: "python"
+        - name: "ruff"
+          language: "python"
+        - name: "psscriptanalyzer"
+          language: "powershell"
+
+    outputs:
+      new_files:
+        - ".pre-commit-config.yaml"
+        - "scripts/hooks/run-watcher-validation.ps1"
+        - "scripts/hooks/install-hooks.ps1"
+      modified_files:
+        - "docs/CONTRIBUTING.md"
+        - "README.md"
+
+    implementation_steps:
+      - step: 1
+        action: "Create .pre-commit-config.yaml"
+        files: [".pre-commit-config.yaml"]
+
+      - step: 2
+        action: "Add official hooks (black, ruff)"
+        files: [".pre-commit-config.yaml"]
+
+      - step: 3
+        action: "Create custom PSScriptAnalyzer hook"
+        files: ["scripts/hooks/run-psscriptanalyzer.ps1"]
+
+      - step: 4
+        action: "Create watcher validation hook"
+        files: ["scripts/hooks/run-watcher-validation.ps1"]
+
+      - step: 5
+        action: "Update developer documentation"
+        files: ["docs/CONTRIBUTING.md", "README.md"]
+
+    pin_files:
+      - role: "config"
+        path: ".pre-commit-config.yaml"
+        module_file_id: "{mfid_from_index}"
+
+  # --------------------------------------------------------------------------
+  # WS2.2: Conventional Commits Linting
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p2-commitlint"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 2
+      phase_instance_id: "{ref:phases[1].phase_instance_id}"
+
+    module_ref:
+      module_key: "CI_PreCommit_Integrator"
+      module_id: "CI-6E2"
+      role: "commit_validator"
+
+    title: "Conventional Commits Message Linting"
+    description: |
+      Add commitlint or commitizen hook to enforce Conventional Commits spec.
+      Enables automated changelog generation and SemVer bumping.
+
+    pattern_references:
+      - pattern_id: "conventional_commits"
+        source: "Proven DevOps Patterns PDF#page=22-23,29"
+        repositories: ["conventional-changelog"]
+
+    branch: "{lane}/2-quality/CI-6E2-commits/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - ".pre-commit-config.yaml"
+      - "commitlint.config.js"
+      - ".github/workflows/commitlint.yml"
+
+    outputs:
+      new_files:
+        - "commitlint.config.js"
+        - ".github/workflows/commitlint.yml"
+      modified_files:
+        - ".pre-commit-config.yaml"
+
+    implementation_steps:
+      - step: 1
+        action: "Add commitlint hook to pre-commit"
+        files: [".pre-commit-config.yaml"]
+
+      - step: 2
+        action: "Create commitlint.config.js"
+        files: ["commitlint.config.js"]
+
+      - step: 3
+        action: "Add CI workflow for PR commit validation"
+        files: [".github/workflows/commitlint.yml"]
+
+    pin_files:
+      - role: "config"
+        path: "commitlint.config.js"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# PHASE 3: CI/CD INTEGRATION (Week 2)
+# ============================================================================
+
+phases:
+  - phase_seq: 3
+    phase_key: "cicd_integration"
+    phase_lineage_id: "c3d4e5f6-a7b8-5901-2cde-f01234567890"  # UUIDv5("phase:cicd_integration")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "high"
+
+    description: |
+      Create reusable GitHub Actions workflows and composite actions.
+      Implement caching strategies for dependencies and build artifacts.
+
+    exit_criteria:
+      - id: "EC-P3-1"
+        metric_key: "ci.build_time_reduction_percent"
+        target: 40
+        description: "40% reduction in CI build time via caching"
+
+      - id: "EC-P3-2"
+        metric_key: "ci.workflow_duplication_lines"
+        target: 0
+        description: "Zero duplicated steps across workflows"
+
+      - id: "EC-P3-3"
+        metric_key: "ci.cache_hit_rate"
+        target: 80
+        description: "80% cache hit rate for dependencies"
+
+    metrics:
+      - key: "ci.build_time_reduction_percent"
+        target: 40
+        unit: "percent"
+
+      - key: "ci.cache_hit_rate"
+        target: 80
+        unit: "percent"
+
+    risks:
+      - key: "cache-invalidation"
+        severity: "medium"
+        mitigation: "Use content-based cache keys with fallback restore keys"
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS3.1: Reusable GitHub Actions Workflows
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p3-reusable-workflows"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 3
+      phase_instance_id: "{ref:phases[2].phase_instance_id}"
+
+    module_ref:
+      module_key: "CI_PreCommit_Integrator"
+      module_id: "CI-6E2"
+      role: "workflow_orchestrator"
+
+    title: "GitHub Actions Composite Actions & Reusable Workflows"
+    description: |
+      Factor out repeated CI steps into composite actions and reusable workflows.
+      Based on GitHub Actions best practices.
+
+    pattern_references:
+      - pattern_id: "github_composite_actions"
+        source: "Proven DevOps Patterns PDF#page=1-3,28-29"
+        repositories: ["actions/*"]
+
+    branch: "{lane}/3-cicd/CI-6E2/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - ".github/actions/**"
+      - ".github/workflows/**"
+
+    outputs:
+      new_files:
+        - ".github/actions/run-watcher/action.yml"
+        - ".github/actions/setup-environment/action.yml"
+        - ".github/workflows/reusable-validation.yml"
+      modified_files:
+        - ".github/workflows/ci.yml"
+
+    implementation_steps:
+      - step: 1
+        action: "Create composite action for watcher validation"
+        files: [".github/actions/run-watcher/action.yml"]
+
+      - step: 2
+        action: "Create composite action for environment setup"
+        files: [".github/actions/setup-environment/action.yml"]
+
+      - step: 3
+        action: "Create reusable workflow for validation pipeline"
+        files: [".github/workflows/reusable-validation.yml"]
+
+      - step: 4
+        action: "Refactor existing CI to use reusable components"
+        files: [".github/workflows/ci.yml"]
+
+    pin_files:
+      - role: "workflow"
+        path: ".github/workflows/ci.yml"
+        module_file_id: "{mfid_from_index}"
+
+  # --------------------------------------------------------------------------
+  # WS3.2: Dependency & Build Caching
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p3-ci-caching"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 3
+      phase_instance_id: "{ref:phases[2].phase_instance_id}"
+
+    module_ref:
+      module_key: "Cache_RateLimit"
+      module_id: "CR-4Y8"
+      role: "cache_manager"
+
+    title: "GitHub Actions Caching Strategy Implementation"
+    description: |
+      Implement multi-tier caching with primary and restore-keys fallback.
+      Cache Python dependencies, PowerShell modules, and build artifacts.
+
+    pattern_references:
+      - pattern_id: "github_cache_strategy"
+        source: "Proven DevOps Patterns PDF#page=2-3"
+        repositories: ["actions/cache"]
+
+    branch: "{lane}/3-cicd/CR-4Y8/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - ".github/workflows/ci.yml"
+      - ".github/actions/setup-environment/action.yml"
+
+    outputs:
+      modified_files:
+        - ".github/workflows/ci.yml"
+        - ".github/actions/setup-environment/action.yml"
+
+    implementation_steps:
+      - step: 1
+        action: "Add actions/cache for Python dependencies"
+        files: [".github/workflows/ci.yml"]
+
+      - step: 2
+        action: "Configure cache keys with hash of requirements.txt"
+        files: [".github/workflows/ci.yml"]
+
+      - step: 3
+        action: "Add restore-keys for partial cache hits"
+        files: [".github/workflows/ci.yml"]
+
+      - step: 4
+        action: "Cache PowerShell modules directory"
+        files: [".github/workflows/ci.yml"]
+
+      - step: 5
+        action: "Cache .runs/cache directory for incremental builds"
+        files: [".github/workflows/ci.yml"]
+
+    pin_files:
+      - role: "workflow"
+        path: ".github/workflows/ci.yml"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# PHASE 4: MODULE REGISTRY ENHANCEMENT (Week 2)
+# ============================================================================
+
+phases:
+  - phase_seq: 4
+    phase_key: "module_registry_enhancement"
+    phase_lineage_id: "d4e5f6a7-b8c9-5012-3def-012345678901"  # UUIDv5("phase:module_registry_enhancement")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "medium"
+
+    description: |
+      Enrich module registry with versioning, dependencies, and provenance metadata.
+      Integrate with Conventional Commits for automated version bumping.
+
+    exit_criteria:
+      - id: "EC-P4-1"
+        metric_key: "registry.module_coverage_percent"
+        target: 100
+        description: "100% of modules have complete metadata"
+
+      - id: "EC-P4-2"
+        metric_key: "registry.version_tracking_accuracy"
+        target: 100
+        description: "All module versions tracked with SemVer"
+
+    metrics:
+      - key: "registry.module_coverage_percent"
+        target: 100
+        unit: "percent"
+
+    risks:
+      - key: "manual-version-updates"
+        severity: "low"
+        mitigation: "Automate version bumping via commitlint integration"
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS4.1: Registry Metadata Enrichment
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p4-registry-metadata"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 4
+      phase_instance_id: "{ref:phases[3].phase_instance_id}"
+
+    module_ref:
+      module_key: "Module_Registry"
+      module_id: "REG-001"
+      role: "metadata_manager"
+
+    title: "Two-ID Module Registry Metadata Expansion"
+    description: |
+      Add version, owner, dependencies, and last_updated fields to registry.yaml.
+      Based on PowerShell module manifest patterns.
+
+    pattern_references:
+      - pattern_id: "powershell_module_manifest"
+        source: "Proven DevOps Patterns PDF#page=11,29"
+        repositories: ["PowerShell/PowerShell"]
+
+    branch: "{lane}/4-registry/REG-001/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "modules/registry.yaml"
+      - "modules/NAMING_CONVENTION.md"
+      - "tools/nameguard/**"
+
+    outputs:
+      modified_files:
+        - "modules/registry.yaml"
+        - "modules/NAMING_CONVENTION.md"
+        - "tools/nameguard/nameguard.py"
+      new_files:
+        - "tools/nameguard/validate_metadata.py"
+
+    implementation_steps:
+      - step: 1
+        action: "Add version field to all modules in registry.yaml"
+        files: ["modules/registry.yaml"]
+
+      - step: 2
+        action: "Add owner/author field to modules"
+        files: ["modules/registry.yaml"]
+
+      - step: 3
+        action: "Add dependencies array to modules"
+        files: ["modules/registry.yaml"]
+
+      - step: 4
+        action: "Add last_updated timestamp field"
+        files: ["modules/registry.yaml"]
+
+      - step: 5
+        action: "Update nameguard to validate new fields"
+        files: ["tools/nameguard/nameguard.py"]
+
+      - step: 6
+        action: "Document metadata fields in conventions"
+        files: ["modules/NAMING_CONVENTION.md"]
+
+    pin_files:
+      - role: "registry"
+        path: "modules/registry.yaml"
+        module_file_id: "{mfid_from_index}"
+
+  # --------------------------------------------------------------------------
+  # WS4.2: Automated Version Bumping
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p4-auto-version"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 4
+      phase_instance_id: "{ref:phases[3].phase_instance_id}"
+
+    module_ref:
+      module_key: "Module_Registry"
+      module_id: "REG-001"
+      role: "version_manager"
+
+    title: "Conventional Commits → SemVer Version Bumping"
+    description: |
+      Parse commit messages to automatically bump module versions in registry.yaml.
+      Links Conventional Commits to semantic versioning.
+
+    pattern_references:
+      - pattern_id: "conventional_commits_semver"
+        source: "Proven DevOps Patterns PDF#page=22-23,29"
+        repositories: ["conventional-changelog"]
+
+    branch: "{lane}/4-registry/REG-001-version/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "scripts/versioning/**"
+      - ".github/workflows/version-bump.yml"
+
+    outputs:
+      new_files:
+        - "scripts/versioning/bump-module-version.ps1"
+        - ".github/workflows/version-bump.yml"
+
+    implementation_steps:
+      - step: 1
+        action: "Create script to parse commit messages"
+        files: ["scripts/versioning/bump-module-version.ps1"]
+
+      - step: 2
+        action: "Implement SemVer bump logic (major/minor/patch)"
+        files: ["scripts/versioning/bump-module-version.ps1"]
+
+      - step: 3
+        action: "Update registry.yaml version fields"
+        files: ["scripts/versioning/bump-module-version.ps1"]
+
+      - step: 4
+        action: "Create GitHub workflow to run on push"
+        files: [".github/workflows/version-bump.yml"]
+
+    pin_files:
+      - role: "script"
+        path: "scripts/versioning/bump-module-version.ps1"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# PHASE 5: SAFEPATCH INTEGRATION (Week 3)
+# ============================================================================
+
+phases:
+  - phase_seq: 5
+    phase_key: "safepatch_integration"
+    phase_lineage_id: "e5f6a7b8-c9d0-5123-4ef0-123456789012"  # UUIDv5("phase:safepatch_integration")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "medium"
+
+    description: |
+      Enhance SafePatch integration with robust error capture and schema validation.
+      Ensure all validation results conform to defined schemas.
+
+    exit_criteria:
+      - id: "EC-P5-1"
+        metric_key: "safepatch.error_capture_rate"
+        target: 100
+        description: "100% of SafePatch errors captured with context"
+
+      - id: "EC-P5-2"
+        metric_key: "safepatch.schema_compliance"
+        target: 100
+        description: "All SafePatch outputs validate against schema"
+
+    metrics:
+      - key: "safepatch.error_capture_rate"
+        target: 100
+        unit: "percent"
+
+    risks:
+      - key: "safepatch-external-dependency"
+        severity: "medium"
+        mitigation: "Mock SafePatch in tests; document integration contract"
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS5.1: SafePatch Error Handling
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p5-safepatch-errors"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 5
+      phase_instance_id: "{ref:phases[4].phase_instance_id}"
+
+    module_ref:
+      module_key: "Verifier"
+      module_id: "VR-8X4"
+      role: "safepatch_invoker"
+
+    title: "SafePatch Robust Error Capture & Structured Reporting"
+    description: |
+      Wrap SafePatch invocation with try/catch, capture ErrorRecords,
+      and convert to structured JSON output.
+
+    pattern_references:
+      - pattern_id: "powershell_error_handling"
+        source: "Proven DevOps Patterns PDF#page=10-11,27"
+        repositories: ["PowerShell/PowerShell"]
+
+    branch: "{lane}/5-safepatch/VR-8X4/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "watcher/build.ps1"
+      - "scripts/validation/Invoke-SafePatchValidation.ps1"
+      - "policy/schemas/safepatch_result.schema.json"
+
+    outputs:
+      modified_files:
+        - "watcher/build.ps1"
+        - "scripts/validation/Invoke-SafePatchValidation.ps1"
+      new_files:
+        - "policy/schemas/safepatch_result.schema.json"
+
+    implementation_steps:
+      - step: 1
+        action: "Define safepatch_result.schema.json"
+        files: ["policy/schemas/safepatch_result.schema.json"]
+
+      - step: 2
+        action: "Wrap SafePatch call in try/catch with -ErrorAction Stop"
+        files: ["scripts/validation/Invoke-SafePatchValidation.ps1"]
+
+      - step: 3
+        action: "Capture ErrorRecord properties to structured object"
+        files: ["scripts/validation/Invoke-SafePatchValidation.ps1"]
+
+      - step: 4
+        action: "Validate output against schema before return"
+        files: ["scripts/validation/Invoke-SafePatchValidation.ps1"]
+
+      - step: 5
+        action: "Update build.ps1 to handle structured SafePatch results"
+        files: ["watcher/build.ps1"]
+
+    pin_files:
+      - role: "validator"
+        path: "scripts/validation/Invoke-SafePatchValidation.ps1"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# PHASE 6: PERFORMANCE OPTIMIZATION (Week 3)
+# ============================================================================
+
+phases:
+  - phase_seq: 6
+    phase_key: "performance_optimization"
+    phase_lineage_id: "f6a7b8c9-d0e1-5234-5f01-234567890123"  # UUIDv5("phase:performance_optimization")
+    phase_instance_id: "{ULID()}"
+    timebox_weeks: 1
+    priority: "low"
+
+    description: |
+      Evaluate and implement parallel execution for independent validation tasks.
+      Benchmark performance improvements.
+
+    exit_criteria:
+      - id: "EC-P6-1"
+        metric_key: "watcher.parallel_speedup_factor"
+        target: 1.5
+        description: "1.5x speedup from parallel execution (if implemented)"
+
+      - id: "EC-P6-2"
+        metric_key: "benchmark.baseline_captured"
+        target: 1
+        description: "Baseline performance metrics captured"
+
+    metrics:
+      - key: "watcher.parallel_speedup_factor"
+        target: 1.5
+        unit: "ratio"
+
+    risks:
+      - key: "parallel-race-conditions"
+        severity: "high"
+        mitigation: "Only parallelize truly independent tasks; use file locks"
+
+workstreams:
+  # --------------------------------------------------------------------------
+  # WS6.1: Parallel Execution Evaluation
+  # --------------------------------------------------------------------------
+  - wslid: "ws-p6-parallel-eval"
+    wsid: "{ULID()}"
+
+    phase_ref:
+      phase_seq: 6
+      phase_instance_id: "{ref:phases[5].phase_instance_id}"
+
+    module_ref:
+      module_key: "Concurrency_Controller"
+      module_id: "CC-2Z5"
+      role: "parallel_executor"
+
+    title: "Invoke-Build Parallel Execution Evaluation"
+    description: |
+      Investigate using Invoke-Build -Parallel for independent validation tasks.
+      Benchmark current vs parallel execution times.
+
+    pattern_references:
+      - pattern_id: "invoke_build_parallel"
+        source: "Proven DevOps Patterns PDF#page=30"
+        repositories: ["nightroman/Invoke-Build"]
+
+    branch: "{lane}/6-perf/CC-2Z5/{wsid}"
+    worktree_path: "/tmp/worktrees/{wsid}"
+
+    path_claims:
+      - "watcher/build.ps1"
+      - "benchmarks/**"
+
+    outputs:
+      modified_files:
+        - "watcher/build.ps1"
+      new_files:
+        - "benchmarks/baseline_metrics.json"
+        - "benchmarks/parallel_evaluation_report.md"
+
+    implementation_steps:
+      - step: 1
+        action: "Capture baseline performance metrics"
+        files: ["benchmarks/baseline_metrics.json"]
+
+      - step: 2
+        action: "Create experimental branch for parallel tasks"
+        files: ["watcher/build.ps1"]
+
+      - step: 3
+        action: "Implement -Parallel flag for independent checks"
+        files: ["watcher/build.ps1"]
+
+      - step: 4
+        action: "Benchmark parallel vs sequential execution"
+        files: ["benchmarks/parallel_evaluation_report.md"]
+
+      - step: 5
+        action: "Make implementation decision based on results"
+        files: ["benchmarks/parallel_evaluation_report.md"]
+
+    constraints:
+      exclusive: false
+      max_runtime_sec: 2400
+
+    pin_files:
+      - role: "runner"
+        path: "watcher/build.ps1"
+        module_file_id: "{mfid_from_index}"
+
+# ============================================================================
+# METADATA & TRACKING
+# ============================================================================
+
+metadata:
+  created_by: "ai_agent"
+  created_at: "{iso8601}"
+  source_analysis:
+    - document: "evidence.jsonl"
+      patterns_extracted: 35
+      repositories_analyzed: 10
+    - document: "Proven DevOps Patterns for AI-Operated Pipeline.pdf"
+      pages: 35
+      recommendations_count: 11
+
+  total_workstreams: 13
+  estimated_total_effort_hours: 120
+  estimated_calendar_days: 21
+
+  success_criteria_summary:
+    phases_with_exit_criteria: 6
+    total_exit_criteria: 17
+    total_metrics: 20
+    total_risks_identified: 13
+
+  pattern_coverage:
+    incremental_builds: ["WS1.1"]
+    async_event_handling: ["WS1.2"]
+    structured_logging: ["WS1.3"]
+    git_hooks: ["WS2.1", "WS2.2"]
+    github_actions_reuse: ["WS3.1", "WS3.2"]
+    module_manifests: ["WS4.1"]
+    conventional_commits: ["WS2.2", "WS4.2"]
+    error_handling: ["WS5.1"]
+    parallel_execution: ["WS6.1"]
+
+  integration_points:
+    with_spec1_safepatch: ["WS1.3", "WS5.1"]
+    with_existing_watcher: ["WS1.1", "WS1.2", "WS1.3"]
+    with_module_registry: ["WS4.1", "WS4.2"]
+    with_github_ci: ["WS3.1", "WS3.2"]
+
+  rollback_strategy:
+    worktree_isolation: true
+    branch_per_workstream: true
+    atomic_commits: true
+    ledger_tracking: "/.runs/ledger.jsonl"
