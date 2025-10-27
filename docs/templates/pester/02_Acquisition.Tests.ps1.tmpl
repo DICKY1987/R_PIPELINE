@@ -1,0 +1,14 @@
+Describe '<Verb-Noun>' {
+  BeforeAll {
+    # Example: Mock external dependency
+    # Mock -CommandName Invoke-RestMethod -MockWith { return @{ id = '42'; name = 'Ada' } }
+  }
+  It 'returns normalized data' {
+    $out = <call>
+    $out | Should -Not -BeNullOrEmpty
+  }
+  It 'handles timeout/retry path' {
+    { <call-timeout> } | Should -Throw
+  }
+}
+

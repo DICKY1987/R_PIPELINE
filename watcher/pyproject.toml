@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "r_pipeline-watcher"
+version = "0.1.0"
+description = "Watcher helpers and tests for R_PIPELINE (phase 1)"
+authors = ["DICKY1987 <noreply@example.com>"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-q"
+testpaths = ["watcher/tests"]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "W", "F", "C90"]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

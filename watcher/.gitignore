@@ -1,0 +1,6 @@
+# Local artifacts
+*.log
+*.pyc
+__pycache__/
+.runs/
+.vscode/

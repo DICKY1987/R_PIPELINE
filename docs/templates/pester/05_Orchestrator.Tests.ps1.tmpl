@@ -1,0 +1,14 @@
+Describe '<Verb-Noun>' {
+  BeforeAll {
+    # Mock collaborators
+    # Mock Get-HrUser -MockWith { [pscustomobject]@{ id='42'; name='Ada' } }
+    # Mock Convert-UserSpec -MockWith { param($User) $User }
+    # Mock Set-UserHome -MockWith { }
+  }
+  It 'wires sub-calls correctly' {
+    <call>
+    # Assert mocks were called as expected (Pester 5: Assert-MockCalled)
+    # Assert-MockCalled Get-HrUser -Times 1
+  }
+}
+

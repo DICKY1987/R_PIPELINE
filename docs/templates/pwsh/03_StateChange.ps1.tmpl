@@ -1,0 +1,16 @@
+Set-StrictMode -Version Latest
+function <Verb-Noun> {
+  [CmdletBinding(SupportsShouldProcess)]
+  param(
+    # <typed params with validation>
+  )
+  <# Purpose: state change (idempotent)
+     Idempotence: detect existing correct state, no-op if matched
+     ShouldProcess: respect -WhatIf/-Confirm
+  #>
+  if (-not $PSCmdlet.ShouldProcess('<target>','<action>')) { return }
+  # BEGIN EDITABLE
+  throw 'not implemented'
+  # END EDITABLE
+}
+
