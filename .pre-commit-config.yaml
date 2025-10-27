@@ -1,0 +1,29 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        language_version: python3
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.1
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+  - repo: https://github.com/commitizen-tools/commitizen
+    rev: v3.28.0
+    hooks:
+      - id: commitizen
+        stages: [commit-msg]
+  - repo: local
+    hooks:
+      - id: pwsh-psscriptanalyzer
+        name: PowerShell ScriptAnalyzer
+        entry: pwsh -NoProfile -File tools/hooks/Invoke-PSScriptAnalyzer.ps1
+        language: system
+        types_or: [powershell]
+      - id: pwsh-check-one
+        name: Local check-one fast gate
+        entry: pwsh -NoProfile -File tools/hooks/Invoke-CheckOne.ps1
+        language: system
+        pass_filenames: true
+        files: "\\.(ps1|py)$"
