@@ -26,6 +26,14 @@
   "time_estimate_hours": 6,
   "dependencies": ["WS-01", "WS-02", "WS-03"],
   "validation": ["CI perf summary stable across reruns"],
-  "commands": {"collect": "python watcher/consumer.py --metrics"}
+  "commands": {"collect": "python watcher/consumer.py --metrics"},
+  "metrics_snapshot": {
+    "output_path": ".runs/ci/perf.json",
+    "summary": {
+      "total_records": 0,
+      "by_status": {},
+      "by_handler": {}
+    }
+  }
 }
 
