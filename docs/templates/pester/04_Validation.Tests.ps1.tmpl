@@ -1,0 +1,13 @@
+Describe '<Verb-Noun>' {
+  It 'passes for good sample' {
+    $result = <call-good>
+    $result.Pass    | Should -BeTrue
+    $result.Reasons | Should -BeEmpty
+  }
+  It 'fails with reasons for bad sample' {
+    $result = <call-bad>
+    $result.Pass    | Should -BeFalse
+    $result.Reasons | Should -Not -BeEmpty
+  }
+}
+

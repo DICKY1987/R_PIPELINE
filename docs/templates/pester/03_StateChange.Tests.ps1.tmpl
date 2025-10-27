@@ -1,0 +1,15 @@
+Describe '<Verb-Noun>' {
+  It 'honors -WhatIf' {
+    <call -WhatIf>
+    # Expect no exception and no side effects
+    $true | Should -BeTrue
+  }
+  It 'no-ops when already correct' {
+    # Arrange pre-existing correct state
+    # Act
+    <call>
+    # Assert nothing changed
+    $true | Should -BeTrue
+  }
+}
+

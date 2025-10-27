@@ -1,0 +1,6 @@
+# Glob-style patterns (PowerShell -like matching)
+.runs\*
+.git\*
+node_modules\*
+*.swp
+*~$
