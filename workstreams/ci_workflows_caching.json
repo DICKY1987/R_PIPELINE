@@ -15,7 +15,12 @@
   },
   "contracts": {
     "matrix": ["windows-latest", "ubuntu-latest"],
-    "pwsh_versions": ["7.x", "5.x (windows)"]
+    "pwsh_versions": ["7.x", "5.x (windows)"],
+    "cache_keys": {
+      "pip": "pip-${{ hashFiles('requirements.txt') }}",
+      "pwsh": "psmodules-${{ hashFiles('modules/**/*.psd1') }}",
+      "watcher": "watch-cache-${{ github.run_id }}"
+    }
   },
   "steps": [
     {"order": 1, "name": "Define jobs", "detail": "Python tests, Pester tests, integration job that runs -Once and validates JSON.", "definition_of_done": "All jobs green without caching."},
