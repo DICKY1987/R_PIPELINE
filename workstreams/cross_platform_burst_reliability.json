@@ -14,18 +14,23 @@
   },
   "contracts": {
     "matrix": ["windows-latest", "ubuntu-latest"],
-    "stability_goal": "0 missed events in burst"
+    "stability_goal": "0 missed events in burst",
+    "latency_goal_ms": 250
   },
   "steps": [
     {"order": 1, "name": "Normalize paths", "detail": "Ensure comparisons and filters handle case and separators.", "definition_of_done": "Tests pass on both OSes."},
     {"order": 2, "name": "Burst harness", "detail": "Create script to create/modify/delete 100 files quickly and measure event count.", "definition_of_done": "No missed events recorded."},
-    {"order": 3, "name": "CI gate", "detail": "Add CI step to run burst harness and fail on misses.", "definition_of_done": "Matrix fails if reliability regresses."}
+    {"order": 3, "name": "Latency instrumentation", "detail": "Capture latency statistics per burst and emit histogram to logs.", "definition_of_done": "p99 latency remains under contract on both OSes."},
+    {"order": 4, "name": "CI gate", "detail": "Add CI step to run burst harness and fail on misses.", "definition_of_done": "Matrix fails if reliability regresses."}
   ],
   "acceptance_criteria": ["0 missed events in burst", "Stable results across both OSes"],
   "risks": [{"risk": "FS watcher differences", "mitigation": "Use conservative debounce and async event handling."}],
   "time_estimate_hours": 6,
   "dependencies": ["WS-01", "WS-04", "WS-06"],
-  "validation": ["CI matrix runs harness and reports 0 misses"],
-  "commands": {"run_burst": "pwsh -File scripts/test/Invoke-Burst.ps1 (to be added)"}
+  "validation": ["CI matrix runs harness and reports 0 misses", "Latency histogram under 250ms p99 on both OSes"],
+  "commands": {
+    "run_burst": "pwsh -File scripts/test/Invoke-Burst.ps1 (to be added)",
+    "summarize_latency": "pwsh -File scripts/test/Invoke-Burst.ps1 -SummarizeLatency (to be added)"
+  }
 }
 
