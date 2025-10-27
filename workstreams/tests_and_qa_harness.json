@@ -1,0 +1,32 @@
+{
+  "id": "WS-04",
+  "name": "Tests & QA Harness",
+  "objective": "Comprehensive tests for watcher debounce, routing, schema validation, and cache correctness with burst and cross-OS checks.",
+  "scope": [
+    "Pester tests for PowerShell paths",
+    "pytest tests for Python helpers",
+    "Burst reliability harness",
+    "Cross-platform path/encoding checks"
+  ],
+  "prerequisites": ["WS-01", "WS-02"],
+  "artifacts": {
+    "inputs": ["watcher/watch.ps1", "watcher/build.ps1"],
+    "outputs": ["tests/*.Tests.ps1", "watcher/tests/*.py", ".runs/ci/*"]
+  },
+  "contracts": {
+    "dev": "pwsh -File tools/Verify.ps1",
+    "ci": "GitHub Actions matrix Win/Linux"
+  },
+  "steps": [
+    {"order": 1, "name": "Schema + skip tests", "detail": "Already added minimal tests; expand for edge cases.", "definition_of_done": "Required fields asserted; cache skip logic robust."},
+    {"order": 2, "name": "Debounce tests", "detail": "Rapid multi-save scenario ensures one invocation with batched files.", "definition_of_done": "No duplicate invocations for same burst."},
+    {"order": 3, "name": "Burst harness", "detail": "Generate/modify 100 files quickly; assert 0 missed events.", "definition_of_done": "Watcher handles burst without loss."}
+  ],
+  "acceptance_criteria": ["All tests green locally and in CI", "Burst test stable across OSes"],
+  "risks": [{"risk": "Flaky timing", "mitigation": "Use generous debounce margins and retries in tests."}],
+  "time_estimate_hours": 10,
+  "dependencies": ["WS-01", "WS-02"],
+  "validation": ["tools/Verify.ps1 runs green", "CI matrix green"],
+  "commands": {"run_all": "pwsh -File tools/Verify.ps1"}
+}
+

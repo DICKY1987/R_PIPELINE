@@ -6,15 +6,18 @@ FileSystemWatcher with debounce and batching.
 - Writes run metadata to .runs/watch/ and logs to watcher/watch.log
 #>
 
+[CmdletBinding()]
 param(
-  [string]$Path = ".",
-  [int]$DebounceMs = 500,
-  [switch]$Once
+  [Parameter()][ValidateNotNullOrEmpty()][string]$Path = ".",
+  [Parameter()][ValidateRange(1, 600000)][int]$DebounceMs = 500,
+  [Parameter()][switch]$Once,
+  [Parameter()][ValidateRange(1, 3600000)][int]$RunForMs
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$repoRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
 $configFile = Join-Path $scriptRoot "watch.config.json"
 if (Test-Path $configFile) {
   try {
@@ -26,6 +29,9 @@ if (Test-Path $configFile) {
 $pending = [System.Collections.ArrayList]::new()
 $timer = $null
 $locker = New-Object Object
+$outputDirFixed = Join-Path $repoRoot '.runs\\watch'
+$buildPathFixed = Join-Path $scriptRoot 'build.ps1'
+$pathFixed = $Path
 
 function Enqueue-File {
   param($fullPath)
@@ -62,9 +68,8 @@ function Enqueue-File {
     if ($filtered.Count -eq 0) { return }
     Write-Host "Detected changes: $($filtered -join ', ')"
     # call build.ps1 with explicit files
-    $build = Join-Path $scriptRoot "build.ps1"
     try {
-      & $build -Files $filtered -Path $Path -Action "onchange"
+      & $using:buildPathFixed -Files $filtered -Path $using:pathFixed -Action "onchange" -OutputDir $using:outputDirFixed
     } catch {
       Write-Host "Build failed: $($_.Exception.Message)"
     }
@@ -88,10 +93,11 @@ $onChange = {
   } catch { }
 }
 
-$fsw.Created += $onChange
-$fsw.Changed += $onChange
-$fsw.Renamed += $onChange
-$fsw.Deleted += $onChange
+# PowerShell event subscription: use .add_<EventName> with the handler scriptblock
+$fsw.add_Created($onChange)
+$fsw.add_Changed($onChange)
+$fsw.add_Renamed($onChange)
+$fsw.add_Deleted($onChange)
 
 Write-Host "Watching '$Path' with debounce ${DebounceMs}ms. Press Enter to quit."
 
@@ -110,6 +116,18 @@ if ($Once) {
     Start-Sleep -Milliseconds ($DebounceMs + 200)
   }
   Write-Host "Once run complete."
+  exit 0
+}
+
+# bounded run for test automation / CI
+if ($PSBoundParameters.ContainsKey('RunForMs') -and $RunForMs -gt 0) {
+  Start-Sleep -Milliseconds $RunForMs
+  # allow any in-flight debounce to flush
+  Start-Sleep -Milliseconds ($DebounceMs + 200)
+  $fsw.EnableRaisingEvents = $false
+  $fsw.Dispose()
+  if ($timer) { $timer.Stop(); $timer.Dispose() }
+  Write-Host "Watcher stopped after ${RunForMs}ms."
   exit 0
 }
 

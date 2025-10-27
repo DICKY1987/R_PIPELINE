@@ -1,0 +1,32 @@
+{
+  "id": "WS-07",
+  "name": "SafePatch Adapter",
+  "objective": "Integrate SafePatch validation as an optional step, map output into result schema, and fail-soft.",
+  "scope": [
+    "Invoke SafePatch from PowerShell",
+    "Parse JSON/XML output",
+    "Map to details.SafePatch with classification",
+    "Guard with try/catch and non-terminating errors"
+  ],
+  "prerequisites": ["SafePatch binary or script accessible", "Config flag to enable"],
+  "artifacts": {
+    "inputs": ["Changed file path"],
+    "outputs": ["details.SafePatch object in results"]
+  },
+  "contracts": {
+    "toggle": "watch.config.json or build.ps1 param",
+    "schema": {"details.SafePatch": {"ok": "bool", "issues": "array", "raw": "string"}}
+  },
+  "steps": [
+    {"order": 1, "name": "Detect availability", "detail": "Check SafePatch on PATH or configured location.", "definition_of_done": "Missing tool logged; pipeline continues."},
+    {"order": 2, "name": "Invoke and capture", "detail": "Run against target file; capture stdout/stderr; time the step.", "definition_of_done": "Outputs captured reliably."},
+    {"order": 3, "name": "Parse + map", "detail": "Parse JSON or XML; normalize to schema fields including severity.", "definition_of_done": "details.SafePatch populated consistently."}
+  ],
+  "acceptance_criteria": ["Adapter does not break when tool missing", "Issues visible in result schema"],
+  "risks": [{"risk": "Breaking schema on parse error", "mitigation": "Store raw output and error field; keep pipeline green."}],
+  "time_estimate_hours": 5,
+  "dependencies": ["WS-02"],
+  "validation": ["Mock SafePatch output test", "Real run on sample repo"],
+  "commands": {"dry_run": "pwsh -File watcher/build.ps1 -Files <path> -OutputDir .runs/watch"}
+}
+
