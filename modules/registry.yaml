@@ -1,0 +1,25 @@
+modules:
+  - id: "DR-5K9"
+    name: "domain_router"
+    version: "1.2.0"
+    owner: "Platform Engineering"
+    dependencies:
+      - "ingestion_hub"
+  - id: "IN-7M2"
+    name: "ingestion_hub"
+    version: "1.1.0"
+    owner: "Data Services"
+    dependencies: []
+  - id: "AN-9Q4"
+    name: "analytics_core"
+    version: "0.5.1"
+    owner: "Insights"
+    dependencies:
+      - "ingestion_hub"
+  - id: "AL-3D7"
+    name: "alerting_bridge"
+    version: "0.3.0"
+    owner: "Site Reliability"
+    dependencies:
+      - "domain_router"
+      - "analytics_core"

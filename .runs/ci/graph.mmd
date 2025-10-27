@@ -1,0 +1,9 @@
+graph LR
+  alerting_bridge["alerting_bridge (AL-3D7)"]
+  analytics_core["analytics_core (AN-9Q4)"]
+  domain_router["domain_router (DR-5K9)"]
+  ingestion_hub["ingestion_hub (IN-7M2)"]
+  alerting_bridge --> analytics_core
+  alerting_bridge --> domain_router
+  analytics_core --> ingestion_hub
+  domain_router --> ingestion_hub
