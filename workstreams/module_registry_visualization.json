@@ -1,0 +1,30 @@
+{
+  "id": "WS-09",
+  "name": "Module Registry & Visualization",
+  "objective": "Formalize module metadata and generate Mermaid diagrams for tasks and module relationships.",
+  "scope": [
+    "Create modules/registry.yaml with Two-ID, SemVer, owner, deps",
+    "Validation via Nameguard or schema checks",
+    "Generate Mermaid graphs embedded in README"
+  ],
+  "prerequisites": ["YAML tooling or PowerShell YAML module"],
+  "artifacts": {
+    "inputs": ["modules/registry.yaml"],
+    "outputs": ["README.md diagram(s)", ".runs/ci/graph.mmd"]
+  },
+  "contracts": {
+    "schema": {"id": "string", "name": "string", "version": "SemVer", "owner": "string", "dependencies": "array"}
+  },
+  "steps": [
+    {"order": 1, "name": "Scaffold registry", "detail": "Create initial registry.yaml with core modules.", "definition_of_done": "Registry has minimal valid entries."},
+    {"order": 2, "name": "Validate", "detail": "Add script to verify schema completeness and unique IDs.", "definition_of_done": "CI job checks registry validity."},
+    {"order": 3, "name": "Diagram", "detail": "Generate Mermaid graph of tasks and module deps.", "definition_of_done": "Diagram embedded in README."}
+  ],
+  "acceptance_criteria": ["Registry complete and validated", "Diagrams render correctly in README"],
+  "risks": [{"risk": "Drift from code", "mitigation": "CI check to ensure registry references files that exist."}],
+  "time_estimate_hours": 5,
+  "dependencies": [],
+  "validation": ["CI registry validation step"],
+  "commands": {"validate": "pwsh -File tools/Verify.ps1 (expand with registry check)"}
+}
+

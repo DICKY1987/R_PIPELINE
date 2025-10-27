@@ -15,13 +15,15 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$repoRoot = (Resolve-Path (Join-Path $scriptRoot '..')).Path
 $timestamp = (Get-Date).ToString("yyyyMMddTHHmmss")
 $OutputPath = Join-Path $OutputDir ($timestamp + ".json")
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $repoRoot '.runs/cache') -Force | Out-Null
 
 function Log-Line {
   param($Message)
-  $logFile = Join-Path $scriptRoot "watcher/watch.log"
+  $logFile = Join-Path $scriptRoot "watch.log"
   $line = "{0} {1}" -f (Get-Date -Format "o"), $Message
   $line | Out-File -FilePath $logFile -Encoding utf8 -Append
 }
@@ -45,6 +47,24 @@ if (-not $Files -or $Files.Count -eq 0) {
 
 $results = @()
 
+function Get-StringHash {
+  param([string]$s)
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($s)
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { ($sha.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '' } finally { $sha.Dispose() }
+}
+
+function Get-FileContentHash {
+  param([string]$filePath)
+  try { (Get-FileHash -Algorithm SHA256 -LiteralPath $filePath).Hash.ToLowerInvariant() } catch { '' }
+}
+
+function Get-CachePathForFile {
+  param([string]$filePath)
+  $key = Get-StringHash -s $filePath
+  return (Join-Path (Join-Path $repoRoot '.runs/cache') ("path-" + $key + ".json"))
+}
+
 function Try-Run-External {
   param(
     [string]$CmdName,
@@ -60,6 +80,9 @@ function Try-Run-External {
 
 foreach ($file in $Files) {
   try {
+    $steps = @()
+    $swTotal = [System.Diagnostics.Stopwatch]::StartNew()
+
     $ext = [IO.Path]::GetExtension($file).ToLowerInvariant()
     $result = [ordered]@{
       file = $file
@@ -67,14 +90,42 @@ foreach ($file in $Files) {
       status = "unknown"
       details = @{}
       timestamp = (Get-Date).ToString("o")
+      steps = @()
+      success = $false
+    }
+
+    # Incremental cache check
+    $cachePath = Get-CachePathForFile -filePath $file
+    $currentHash = Get-FileContentHash -filePath $file
+    $swCache = [System.Diagnostics.Stopwatch]::StartNew()
+    $cacheHit = $false
+    if (Test-Path $cachePath -PathType Leaf -ErrorAction SilentlyContinue) {
+      try {
+        $prev = Get-Content -LiteralPath $cachePath -Raw | ConvertFrom-Json
+        if ($prev -and $prev.hash -eq $currentHash) { $cacheHit = $true }
+      } catch { }
+    }
+    $swCache.Stop()
+    $steps += [ordered]@{ name = 'cache-check'; elapsed_ms = [int]$swCache.Elapsed.TotalMilliseconds; success = $true }
+
+    if ($cacheHit) {
+      $result.handler = "cache"
+      $result.status = "skipped"
+      $result.details.cache = @{ hit = $true; hash = $currentHash }
+      $result.steps = $steps
+      $result.success = $true
+      $results += $result
+      Log-Line ("CHECK OK (skipped): {0}" -f $file)
+      continue
     }
 
     switch ($ext) {
       ".py" {
         $result.handler = "python-syntax-check"
-        $pyHelper = Join-Path $scriptRoot "watcher/py_check.py"
+        $pyHelper = Join-Path $scriptRoot "py_check.py"
         if (Test-Path $pyHelper) {
           try {
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
             $proc = & python $pyHelper --file $file 2>&1
             $json = $proc | Out-String
             try {
@@ -85,40 +136,53 @@ foreach ($file in $Files) {
               $result.status = "error"
               $result.details.py_check = @{ error = "py_check.py invalid output"; raw = $json }
             }
+            $sw.Stop()
+            $steps += [ordered]@{ name = 'py_check'; elapsed_ms = [int]$sw.Elapsed.TotalMilliseconds; success = ($result.status -eq 'ok') }
           } catch {
             $result.status = "error"
             $result.details.py_check = @{ error = $_.Exception.Message }
+            $steps += [ordered]@{ name = 'py_check'; elapsed_ms = 0; success = $false }
           }
         } else {
           # fallback: attempt compile
           try {
+            $sw = [System.Diagnostics.Stopwatch]::StartNew()
             python -m py_compile $file 2>&1 | Out-Null
             $result.status = "ok"
+            $sw.Stop()
+            $steps += [ordered]@{ name = 'py_compile'; elapsed_ms = [int]$sw.Elapsed.TotalMilliseconds; success = $true }
           } catch {
             $result.status = "error"
             $result.details.py_check = @{ error = $_.Exception.Message }
+            $steps += [ordered]@{ name = 'py_compile'; elapsed_ms = 0; success = $false }
           }
         }
 
         # Best-effort: run ruff (if installed)
         if (Get-Command ruff -ErrorAction SilentlyContinue) {
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
           $ruffRes = Try-Run-External -CmdName ruff -Args @("check","--format","json",$file)
           $result.details.ruff = $ruffRes
           # attempt to parse ruff JSON if ok
           if ($ruffRes.ok -and $ruffRes.output) {
             try { $result.details.ruff_parsed = $ruffRes.output | ConvertFrom-Json -ErrorAction Stop } catch { $result.details.ruff_parse_error = $ruffRes.output }
           }
+          $sw.Stop()
+          $steps += [ordered]@{ name = 'ruff'; elapsed_ms = [int]$sw.Elapsed.TotalMilliseconds; success = $ruffRes.ok }
         } else {
           $result.details.ruff = @{ available = $false }
         }
 
         # Best-effort: run pyright (if installed)
         if (Get-Command pyright -ErrorAction SilentlyContinue) {
+          $sw = [System.Diagnostics.Stopwatch]::StartNew()
           $pyrightRes = Try-Run-External -CmdName pyright -Args @("--outputjson",$file)
           $result.details.pyright = $pyrightRes
           if ($pyrightRes.ok -and $pyrightRes.output) {
             try { $result.details.pyright_parsed = $pyrightRes.output | ConvertFrom-Json -ErrorAction Stop } catch { $result.details.pyright_parse_error = $pyrightRes.output }
           }
+          $sw.Stop()
+          $steps += [ordered]@{ name = 'pyright'; elapsed_ms = [int]$sw.Elapsed.TotalMilliseconds; success = $pyrightRes.ok }
         } else {
           $result.details.pyright = @{ available = $false }
         }
@@ -126,6 +190,7 @@ foreach ($file in $Files) {
 
       ".ps1" {
         $result.handler = "powershell-parse"
+        $sw = [System.Diagnostics.Stopwatch]::StartNew()
         $tokens = $null
         $errors = $null
         [System.Management.Automation.Language.Parser]::ParseFile($file,[ref]$tokens,[ref]$errors) | Out-Null
@@ -147,6 +212,8 @@ foreach ($file in $Files) {
             $result.details.PSScriptAnalyzer = @{ available = $false }
           }
         }
+        $sw.Stop()
+        $steps += [ordered]@{ name = 'ps_parse'; elapsed_ms = [int]$sw.Elapsed.TotalMilliseconds; success = ($result.status -eq 'ok') }
       }
 
       default {
@@ -173,6 +240,16 @@ foreach ($file in $Files) {
         $result.details.SPEC1 = $specResults
       }
     }
+
+    # finalize record
+    $swTotal.Stop()
+    $result.steps = $steps
+    $result.success = ($result.status -eq 'ok' -or $result.status -eq 'skipped')
+
+    # update cache with current hash
+    try {
+      @{ path = $file; hash = $currentHash; when = (Get-Date).ToString('o') } | ConvertTo-Json -Depth 5 | Out-File -FilePath $cachePath -Encoding utf8
+    } catch { }
 
     $results += $result
     Log-Line ("CHECK OK: {0} -> {1}" -f $file, $result.status)

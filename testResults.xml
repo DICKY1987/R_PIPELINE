@@ -1,14 +1,59 @@
 ﻿<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="1" errors="0" failures="0" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2025-10-26" time="21:46:48">
-  <environment machine-name="5CD847950M" cwd="C:\Users\Richard Wilks\R_PIPELINE" nunit-version="2.5.8.0" os-version="10.0.26100" clr-version="9.0.8" user="Richard Wilks" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk0\Partition3" user-domain="5CD847950M" />
+<test-results xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="nunit_schema_2.5.xsd" name="Pester" total="8" errors="0" failures="1" not-run="0" inconclusive="0" ignored="0" skipped="0" invalid="0" date="2025-10-27" time="00:19:42">
+  <environment clr-version="9.0.8" user-domain="5CD847950M" user="Richard Wilks" machine-name="5CD847950M" cwd="C:\Users\Richard Wilks\R_PIPELINE" platform="Microsoft Windows 11 Pro|C:\WINDOWS|\Device\Harddisk0\Partition3" nunit-version="2.5.8.0" os-version="10.0.26100" />
   <culture-info current-culture="en-US" current-uiculture="en-US" />
-  <test-suite type="TestFixture" name="Pester" executed="True" result="Success" success="True" time="0.6339" asserts="0" description="Pester">
+  <test-suite type="TestFixture" name="Pester" executed="True" result="Failure" success="False" time="8.9251" asserts="0" description="Pester">
     <results>
-      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\Sanity.Tests.ps1" executed="True" result="Success" success="True" time="0.6339" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\Sanity.Tests.ps1">
+      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\MergeToMod-PathSafety.Tests.ps1" executed="True" result="Success" success="True" time="0.9931" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\MergeToMod-PathSafety.Tests.ps1">
         <results>
-          <test-suite type="TestFixture" name="Repository Sanity" executed="True" result="Success" success="True" time="0.1518" asserts="0" description="Repository Sanity">
+          <test-suite type="TestFixture" name="merge_to_mod path safety" executed="True" result="Success" success="True" time="0.3697" asserts="0" description="merge_to_mod path safety">
             <results>
-              <test-case description="guardrails scaffolding exists" name="Repository Sanity.guardrails scaffolding exists" time="0.1011" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="sanitizes relative paths that escape base" name="merge_to_mod path safety.sanitizes relative paths that escape base" time="0.1845" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="preserves nested relative path inside base" name="merge_to_mod path safety.preserves nested relative path inside base" time="0.0235" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="normalizes dot segments" name="merge_to_mod path safety.normalizes dot segments" time="0.0177" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\Sanity.Tests.ps1" executed="True" result="Success" success="True" time="0.142" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\Sanity.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Repository Sanity" executed="True" result="Success" success="True" time="0.0393" asserts="0" description="Repository Sanity">
+            <results>
+              <test-case description="guardrails scaffolding exists" name="Repository Sanity.guardrails scaffolding exists" time="0.0183" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Debounce.Tests.ps1" executed="True" result="Failure" success="False" time="1.3365" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Debounce.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Watcher debounce batching behavior" executed="True" result="Failure" success="False" time="1.1977" asserts="0" description="Watcher debounce batching behavior">
+            <results>
+              <test-case description="batches rapid multi-saves into a single build invocation" name="Watcher debounce batching behavior.batches rapid multi-saves into a single build invocation" time="1.1775" asserts="0" success="False" result="Failure" executed="True">
+                <failure>
+                  <message>Expected 1, but got 0.</message>
+                  <stack-trace>at ($after.Count - $before.Count) | Should -Be 1, C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Debounce.Tests.ps1:42
+at &lt;ScriptBlock&gt;, C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Debounce.Tests.ps1:42</stack-trace>
+                </failure>
+              </test-case>
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Incremental.Tests.ps1" executed="True" result="Success" success="True" time="5.0003" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Incremental.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Watcher build.ps1 results schema and incremental behavior" executed="True" result="Success" success="True" time="4.8942" asserts="0" description="Watcher build.ps1 results schema and incremental behavior">
+            <results>
+              <test-case description="emits per-file JSON with steps[] and success boolean" name="Watcher build.ps1 results schema and incremental behavior.emits per-file JSON with steps[] and success boolean" time="1.8517" asserts="0" success="True" result="Success" executed="True" />
+              <test-case description="skips unchanged files on subsequent run (cache hit)" name="Watcher build.ps1 results schema and incremental behavior.skips unchanged files on subsequent run (cache hit)" time="3.0118" asserts="0" success="True" result="Success" executed="True" />
+            </results>
+          </test-suite>
+        </results>
+      </test-suite>
+      <test-suite type="TestFixture" name="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Once.Tests.ps1" executed="True" result="Success" success="True" time="1.4531" asserts="0" description="C:\Users\Richard Wilks\R_PIPELINE\tests\Watcher-Once.Tests.ps1">
+        <results>
+          <test-suite type="TestFixture" name="Watcher one-shot mode (-Once) does not error and emits results" executed="True" result="Success" success="True" time="1.3529" asserts="0" description="Watcher one-shot mode (-Once) does not error and emits results">
+            <results>
+              <test-case description="runs without subscription errors and writes a results file" name="Watcher one-shot mode (-Once) does not error and emits results.runs without subscription errors and writes a results file" time="1.3314" asserts="0" success="True" result="Success" executed="True" />
             </results>
           </test-suite>
         </results>

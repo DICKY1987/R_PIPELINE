@@ -1,0 +1,34 @@
+{
+  "id": "WS-05",
+  "name": "Pre-Commit & Local DX",
+  "objective": "Prevent bad commits via pre-commit hooks and improve local developer workflow.",
+  "scope": [
+    ".pre-commit-config.yaml (Black, Ruff, PSScriptAnalyzer, Commitizen)",
+    "Custom hook to run minimal check-one",
+    "CONTRIBUTING.md updates for install/run"
+  ],
+  "prerequisites": ["Python env for pre-commit", "PowerShell for custom hook"],
+  "artifacts": {
+    "inputs": ["Repo root"],
+    "outputs": [".pre-commit-config.yaml", "CONTRIBUTING.md"]
+  },
+  "contracts": {
+    "install": "pip install pre-commit && pre-commit install",
+    "ci": "pre-commit run --all-files"
+  },
+  "steps": [
+    {"order": 1, "name": "Config hooks", "detail": "Add standard format/lint hooks + conventional commits.", "definition_of_done": "Config file present and valid."},
+    {"order": 2, "name": "Custom hook", "detail": "Call a lightweight check-one via pwsh; fail-fast on critical issues.", "definition_of_done": "Hook runs on staged files."},
+    {"order": 3, "name": "Docs", "detail": "Document installation and troubleshooting in CONTRIBUTING.", "definition_of_done": "New devs can set up in <5 minutes."}
+  ],
+  "acceptance_criteria": ["Bad code blocked locally", "CI replicates hook run"],
+  "risks": [{"risk": "Developer friction", "mitigation": "Document skip options and CI-as-backup."}],
+  "time_estimate_hours": 4,
+  "dependencies": [],
+  "validation": ["Manual test: modify file and commit; hook triggers"],
+  "commands": {
+    "install": "pip install pre-commit && pre-commit install",
+    "run_all": "pre-commit run --all-files"
+  }
+}
+

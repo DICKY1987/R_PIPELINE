@@ -1,0 +1,53 @@
+{
+  "id": "WS-03",
+  "name": "Result Schema + Consumer",
+  "objective": "Define the stable JSON schema and provide a small consumer that summarizes latest run results for humans/CI.",
+  "scope": [
+    "Formalize record schema and examples",
+    "Validation helper or tests for schema",
+    "Consumer CLI that reads .runs/watch/*.json and prints summary"
+  ],
+  "prerequisites": [
+    "Structured outputs exist in .runs/watch",
+    "Python runtime for consumer (or PowerShell alternative)"
+  ],
+  "artifacts": {
+    "inputs": [".runs/watch/*.json"],
+    "outputs": ["Console summary for CI", "Optionally: .runs/ci/summary.txt"]
+  },
+  "contracts": {
+    "record_schema": {
+      "file": "string",
+      "handler": "string",
+      "status": "ok|error|skipped",
+      "timestamp": "ISO8601",
+      "steps": [{"name": "string", "elapsed_ms": "int", "success": "bool"}],
+      "success": "bool",
+      "details": "object"
+    },
+    "consumer_cli": "python watcher/consumer.py --latest | pwsh equivalent"
+  },
+  "steps": [
+    {"order": 1, "name": "Schema doc", "detail": "Create a markdown or JSON schema with field descriptions and examples.", "definition_of_done": "Schema agreed and checked in."},
+    {"order": 2, "name": "Consumer CLI", "detail": "Read newest JSON in .runs/watch; print counts by status and top errors.", "definition_of_done": "CI can call consumer and see summary text."},
+    {"order": 3, "name": "Schema validation test", "detail": "Test that emitted JSON contains required fields and types.", "definition_of_done": "Pester/pytest test passes on sample outputs."}
+  ],
+  "acceptance_criteria": [
+    "Consumer prints deterministic summary",
+    "Schema fields are present and documented",
+    "CI step succeeds using consumer"
+  ],
+  "risks": [
+    {"risk": "Schema drift", "mitigation": "Keep tests that assert required fields; change via versioned schema."}
+  ],
+  "time_estimate_hours": 6,
+  "dependencies": ["WS-02"],
+  "validation": [
+    "Unit test: schema fields present",
+    "Integration: consumer runs in CI and exits 0"
+  ],
+  "commands": {
+    "run_consumer": "python watcher/consumer.py"
+  }
+}
+

@@ -1,0 +1,60 @@
+{
+  "id": "WS-02",
+  "name": "Task Runner: Incremental + Routing",
+  "objective": "Route by extension and run checks with content-hash incremental skipping and structured results.",
+  "scope": [
+    "Extension routing (.py, .ps1)",
+    "Python checks: py_check.py; best-effort ruff/pyright",
+    "PowerShell checks: parse + PSScriptAnalyzer (best-effort)",
+    "Content-hash cache skip on unchanged files",
+    "Structured JSON array + JSONL per record",
+    "Per-step timings and success flag"
+  ],
+  "prerequisites": [
+    "PowerShell 7+ preferred (works with 5.1)",
+    "Python available on PATH (for py_check.py)",
+    "Optional: ruff, pyright, PSScriptAnalyzer"
+  ],
+  "artifacts": {
+    "inputs": ["file list from watcher"],
+    "outputs": [".runs/watch/<timestamp>.json", ".runs/watch/<timestamp>.jsonl", ".runs/cache/path-<hash>.json", "watcher/watch.log"]
+  },
+  "contracts": {
+    "cli": "watcher/build.ps1 -Files <paths> [-Force] [-OutputDir .runs/watch]",
+    "record_schema": {
+      "file": "string",
+      "handler": "string",
+      "status": "ok|error|skipped",
+      "timestamp": "ISO8601",
+      "steps": [{"name": "string", "elapsed_ms": "int", "success": "bool"}],
+      "success": "bool",
+      "details": "object"
+    }
+  },
+  "steps": [
+    {"order": 1, "name": "Content hash cache", "detail": "SHA256 file content; cache path keyed by hashed file path; skip if hash matches.", "definition_of_done": "Unchanged files produce 'skipped' with details.cache.hit true."},
+    {"order": 2, "name": "Python route", "detail": "Call py_check.py; capture JSON; fallback to py_compile; add step timings.", "definition_of_done": "Status reflects syntax result; timings recorded."},
+    {"order": 3, "name": "PowerShell route", "detail": "Parse with PS Parser; add PSScriptAnalyzer results if available.", "definition_of_done": "Parse errors reported; analyzer captured when present."},
+    {"order": 4, "name": "Optional tools", "detail": "ruff/pyright best-effort; parse JSON if present; never fail pipeline solely for tool absence.", "definition_of_done": "details.{ruff,pyright}.available or parsed output present."},
+    {"order": 5, "name": "Results emission", "detail": "Array JSON file and matching JSONL lines; update watch.log.", "definition_of_done": "Files written in .runs/watch; log appended."}
+  ],
+  "acceptance_criteria": [
+    "Per-file records include steps[] and success",
+    "Cache hit leads to 'skipped' without re-running heavy checks",
+    "Optional tools do not break the run when missing"
+  ],
+  "risks": [
+    {"risk": "Incorrect cache hits", "mitigation": "Hash actual content; update cache after successful run."}
+  ],
+  "time_estimate_hours": 10,
+  "dependencies": ["WS-01"],
+  "validation": [
+    "Pester tests: schema + skip-on-cache (already added)",
+    "CI integration step validates JSON fields"
+  ],
+  "commands": {
+    "run_files": "pwsh -File watcher/build.ps1 -Files <path[,path]> -OutputDir .runs/watch",
+    "force_run": "pwsh -File watcher/build.ps1 -Files <path> -OutputDir .runs/watch -Force"
+  }
+}
+

@@ -1,0 +1,58 @@
+{
+  "id": "WS-01",
+  "name": "Watcher Core",
+  "objective": "Implement a debounced, reliable FileSystemWatcher that batches file changes and invokes the task runner.",
+  "scope": [
+    "Debounced event handling (configurable)",
+    "Ignore/include filtering via config files",
+    "Batching multiple rapid changes",
+    "One-shot mode for CI/integration",
+    "Structured logging and graceful error handling"
+  ],
+  "prerequisites": [
+    "PowerShell 7+ preferred (works with 5.1)",
+    "watcher/build.ps1 present and invokable",
+    "watcher/watch.config.json and watcher/watch.ignore available (defaults OK)"
+  ],
+  "artifacts": {
+    "inputs": ["watcher/watch.config.json", "watcher/watch.ignore"],
+    "outputs": [".runs/watch/<timestamp>.json", ".runs/watch/<timestamp>.jsonl", "watcher/watch.log"]
+  },
+  "contracts": {
+    "invoke_build": "watcher/build.ps1 -Files <paths> [-Force]",
+    "config": {
+      "debounce_ms": 500,
+      "include": ["**/*.py", "**/*.ps1"],
+      "exclude": ["**/*.swp", "**/*.tmp"]
+    }
+  },
+  "steps": [
+    {"order": 1, "name": "Load config", "detail": "Read JSON config and apply debounce/include/exclude.", "definition_of_done": "Defaults applied if file missing; no failures."},
+    {"order": 2, "name": "Wire FileSystemWatcher", "detail": "Subscribe to Created, Changed, Renamed, Deleted with async handlers.", "definition_of_done": "Events received reliably for target folders."},
+    {"order": 3, "name": "Implement debounce + batch", "detail": "Resettable timer collects unique file paths; fires once per burst.", "definition_of_done": "Save burst emits a single invocation with batched list."},
+    {"order": 4, "name": "Filter ignore/include", "detail": "Apply watch.ignore and include patterns before invoking build.", "definition_of_done": "Temp files are not passed to build."},
+    {"order": 5, "name": "One-shot mode", "detail": "Add -Once to scan matching files, trigger build once, exit.", "definition_of_done": "Used in CI integration test."},
+    {"order": 6, "name": "Logging + resilience", "detail": "Append entries to watcher/watch.log; catch and log handler errors without terminating.", "definition_of_done": "Watcher keeps running after errors."}
+  ],
+  "acceptance_criteria": [
+    "Detects file saves within 1 second",
+    "No false triggers from temp files",
+    "One-shot mode writes a results JSON",
+    "Burst test (100 files) shows 0 missed events"
+  ],
+  "risks": [
+    {"risk": "Missed events under high churn", "mitigation": "Use Register-ObjectEvent and debounce batching; add burst tests."},
+    {"risk": "Editor temp files trigger runs", "mitigation": "Ignore patterns and suffix checks."}
+  ],
+  "time_estimate_hours": 8,
+  "dependencies": ["WS-02"],
+  "validation": [
+    "Pester tests for debounce and ignore logic",
+    "Manual burst script (generate/modify 100 files)"
+  ],
+  "commands": {
+    "run_once": "pwsh -File watcher/watch.ps1 -Path . -Once",
+    "start_dev": "pwsh -File watcher/watch.ps1 -Path ."
+  }
+}
+

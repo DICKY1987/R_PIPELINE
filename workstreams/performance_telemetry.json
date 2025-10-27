@@ -1,0 +1,31 @@
+{
+  "id": "WS-08",
+  "name": "Performance & Telemetry",
+  "objective": "Measure and tune latency from file save to validation completion; add telemetry and thresholds.",
+  "scope": [
+    "Timestamp probes (save → JSON emitted)",
+    "Debounce tuning and parallelism options",
+    "CI summary of performance metrics"
+  ],
+  "prerequisites": ["WS-01", "WS-02", "WS-03"],
+  "artifacts": {
+    "inputs": [".runs/watch/*.json"],
+    "outputs": [".runs/ci/perf.json", "CI console summary"]
+  },
+  "contracts": {
+    "target": "< 2s typical single-file change",
+    "metrics": ["end-to-end-latency-ms", "steps timing distribution"]
+  },
+  "steps": [
+    {"order": 1, "name": "Add timestamps", "detail": "Ensure per-step timings and overall latency captured.", "definition_of_done": "Consumer can compute e2e."},
+    {"order": 2, "name": "Thresholds", "detail": "Define warn/fail thresholds for CI reporting.", "definition_of_done": "CI prints pass/fail against target."},
+    {"order": 3, "name": "Tuning", "detail": "Experiment with debounce and optional parallelism.", "definition_of_done": "Latency meets targets without instability."}
+  ],
+  "acceptance_criteria": ["Latency under target in CI", "No missed events after tuning"],
+  "risks": [{"risk": "Too aggressive debounce", "mitigation": "Start conservative; back off if flakiness detected."}],
+  "time_estimate_hours": 6,
+  "dependencies": ["WS-01", "WS-02", "WS-03"],
+  "validation": ["CI perf summary stable across reruns"],
+  "commands": {"collect": "python watcher/consumer.py --metrics"}
+}
+

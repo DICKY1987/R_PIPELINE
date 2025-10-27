@@ -1,0 +1,32 @@
+{
+  "id": "WS-06",
+  "name": "CI Workflows & Caching",
+  "objective": "Establish reusable CI with matrix, caching, artifacts, and summary publishing.",
+  "scope": [
+    "Workflow for Python tests, Pester tests, integration",
+    "Composite action for running watcher once",
+    "Cache for pip, PS modules, and .runs/cache",
+    "Artifacts upload of .runs/watch and summaries"
+  ],
+  "prerequisites": ["GitHub Actions enabled", "Repository public or tokens ready"],
+  "artifacts": {
+    "inputs": ["Repo content"],
+    "outputs": [".github/workflows/*.yml", ".github/actions/run-watcher/action.yml", "Artifacts in CI"]
+  },
+  "contracts": {
+    "matrix": ["windows-latest", "ubuntu-latest"],
+    "pwsh_versions": ["7.x", "5.x (windows)"]
+  },
+  "steps": [
+    {"order": 1, "name": "Define jobs", "detail": "Python tests, Pester tests, integration job that runs -Once and validates JSON.", "definition_of_done": "All jobs green without caching."},
+    {"order": 2, "name": "Add caches", "detail": "actions/cache for pip and $env:PSModulePath; cache .runs/cache/.", "definition_of_done": "Subsequent runs faster with cache hits."},
+    {"order": 3, "name": "Artifacts", "detail": "Upload .runs/watch outputs and consumer summary.", "definition_of_done": "Artifacts present in each run."}
+  ],
+  "acceptance_criteria": ["Matrix green", "Cold run acceptable, warm run improved"],
+  "risks": [{"risk": "Cache poisoning", "mitigation": "Use precise keys with lockfile hashes."}],
+  "time_estimate_hours": 6,
+  "dependencies": ["WS-03", "WS-04"],
+  "validation": ["Rerun CI to measure cache delta"],
+  "commands": {"local_smoke": "pwsh -File watcher/watch.ps1 -Once"}
+}
+
