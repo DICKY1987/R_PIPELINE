@@ -42,6 +42,10 @@ if ($pythonRoots.Count -eq 0) {
   } else {
     if (Get-Command ruff -ErrorAction SilentlyContinue) { ruff check $pythonRoots ; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
     if (Get-Command mypy -ErrorAction SilentlyContinue) { mypy $pythonRoots ; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
-    if (Get-Command pytest -ErrorAction SilentlyContinue) { pytest -q ; if ($LASTEXITCODE) { exit $LASTEXITCODE } }
+    if (Get-Command pytest -ErrorAction SilentlyContinue) {
+      # Limit discovery to top-level tests folder to avoid vendor/template suites
+      if (Test-Path 'tests') { pytest -q tests } else { pytest -q }
+      if ($LASTEXITCODE) { exit $LASTEXITCODE }
+    }
   }
 }

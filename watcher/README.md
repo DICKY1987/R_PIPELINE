@@ -33,4 +33,14 @@ Outputs
 Notes
 - build.ps1 will attempt to call SPEC-1 validation scripts if present under ../SPEC-1-AI-Upkeep-Suite-v2-Guardrails-MCP/scripts/validation
 - The watcher is safe by default: it will not modify code, only run checks and produce structured results.
+
+SafePatch (optional)
+- Enable via CLI flags passed to watch.ps1 and build.ps1:
+  - -EnableSafePatch
+  - -SafePatchPath C:\\tools\\safepatch.ps1 (optional)
+- Or enable via watch.config.json:
+  {
+    "SafePatch": { "enabled": true, "path": "C:/tools/safepatch.ps1" }
+  }
+- When enabled, each record includes details.SafePatch and a 'safepatch' step.
 ```
