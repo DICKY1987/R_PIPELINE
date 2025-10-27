@@ -1,6 +1,19 @@
 Set-StrictMode -Version Latest
 $InformationPreference = 'Continue'
 Write-Information 'Running PowerShell checks...'
+if (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'Test-ModuleRegistry.ps1')) {
+  $registryPath = 'modules/registry.yaml'
+  if (Test-Path -LiteralPath $registryPath) {
+    Write-Information 'Validating module registry...'
+    . (Join-Path $PSScriptRoot 'Test-ModuleRegistry.ps1')
+    $registryResult = Test-ModuleRegistry -Path $registryPath -MermaidOutputPath '.runs/ci/graph.mmd'
+    if (-not $registryResult.Pass) {
+      $reasonText = ($registryResult.Reasons | ForEach-Object { "  - $_" }) -join [Environment]::NewLine
+      Write-Error "Module registry validation failed:`n$reasonText"
+      exit 1
+    }
+  }
+}
 if (Get-Command Invoke-ScriptAnalyzer -ErrorAction SilentlyContinue) {
   $pssaRoots = @()
   foreach ($cand in @('src','tools','scripts')) { if (Test-Path $cand) { $pssaRoots += $cand } }
