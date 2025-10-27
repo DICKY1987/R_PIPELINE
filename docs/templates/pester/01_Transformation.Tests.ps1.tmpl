@@ -1,0 +1,12 @@
+Describe '<Verb-Noun>' {
+  It 'handles happy path' {
+    # Arrange/Act
+    $result = <call>
+    # Assert
+    $result | Should -Be <expected>
+  }
+  It 'handles edge case'  {
+    { <call-bad> } | Should -Throw -Because 'Edge case should throw actionable error'
+  }
+}
+

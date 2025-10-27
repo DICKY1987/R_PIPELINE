@@ -1,0 +1,9 @@
+{
+  "debounce_ms": 500,
+  "include": ["**/*.py", "**/*.ps1"],
+  "exclude": [".runs/**", ".git/**", "node_modules/**"],
+  "actions": {
+    ".py": "python watcher/py_check.py --file",
+    ".ps1": "powershell -File"
+  }
+}

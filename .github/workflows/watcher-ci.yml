@@ -1,0 +1,82 @@
+name: Watcher CI
+on:
+  push:
+    paths:
+      - 'watcher/**'
+  pull_request:
+    paths:
+      - 'watcher/**'
+
+jobs:
+  python-tests:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+      - name: Run pytest
+        working-directory: watcher
+        run: |
+          pytest -q
+
+  pester-tests:
+    name: PowerShell Pester tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PowerShell
+        uses: PowerShell/PowerShell@v2
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          pwsh -Command "Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser"
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -NoLogo -Command "Invoke-Pester -Path watcher/test_sample.Tests.ps1 -OutputFormat NUnitXml -OutputFile watcher/pester-results.xml"
+
+  integration-test:
+    name: Integration: watch -> build -> validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Set up PowerShell
+        uses: PowerShell/PowerShell@v2
+      - name: Create CI test files
+        run: |
+          echo "def ci_test():\n    return 1\n" > watcher/ci_integration_ok.py
+          echo "# empty placeholder" > watcher/ci_placeholder.txt
+      - name: Run watcher once (PowerShell)
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -ExecutionPolicy Bypass -File watcher/watch.ps1 -Path watcher -Once
+      - name: Validate .runs/watch output (PowerShell)
+        shell: pwsh
+        run: |
+          $json = Get-ChildItem -Path .runs/watch -Filter *.json | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+          if (-not $json) { Write-Error "No .runs/watch JSON found"; exit 1 }
+          $content = Get-Content $json.FullName -Raw
+          try {
+            $objs = ConvertFrom-Json $content
+          } catch { Write-Error "Invalid JSON in $($json.FullName)"; exit 1 }
+          foreach ($rec in $objs) {
+            if (-not $rec.file) { Write-Error "Missing file field"; exit 1 }
+            if (-not $rec.status) { Write-Error "Missing status"; exit 1 }
+            if (-not $rec.handler) { Write-Error "Missing handler"; exit 1 }
+            if (-not $rec.timestamp) { Write-Error "Missing timestamp"; exit 1 }
+          }
+          Write-Host "Integration validation ok"
+      - name: Run consumer and print summary
+        run: |
+          python watcher/consumer.py
