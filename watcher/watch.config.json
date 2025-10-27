@@ -5,5 +5,13 @@
   "actions": {
     ".py": "python watcher/py_check.py --file",
     ".ps1": "powershell -File"
+  },
+  "SafePatch": {
+    "enabled": false,
+    "path": ""
   }
 }
+
+
+
+

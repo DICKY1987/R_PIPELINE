@@ -8,7 +8,9 @@ param(
   [string[]]$Files,
   [string]$Path = ".",
   [string]$Action = "check",
-  [string]$OutputDir = ".runs/watch"
+  [string]$OutputDir = ".runs/watch",
+  [switch]$EnableSafePatch,
+  [ValidateNotNullOrEmpty()][string]$SafePatchPath
 )
 
 Set-StrictMode -Version Latest
@@ -223,6 +225,62 @@ foreach ($file in $Files) {
       }
     }
 
+    # Optional SafePatch adapter (fail-soft)
+    if ($EnableSafePatch.IsPresent) {
+      $swSP = [System.Diagnostics.Stopwatch]::StartNew()
+      $spOk = $false
+      $spDetails = @{ ok = $false; issues = @(); raw = $null }
+      try {
+        $tool = $null
+        if ($PSBoundParameters.ContainsKey('SafePatchPath') -and $SafePatchPath -and (Test-Path -LiteralPath $SafePatchPath)) {
+          $tool = $SafePatchPath
+        } else {
+          $specTool = Join-Path $scriptRoot 'SPEC-1-AI-Upkeep-Suite-v2-Guardrails-MCP/scripts/validation/Invoke-SafePatchValidation.ps1'
+          if (Test-Path -LiteralPath $specTool) { $tool = $specTool }
+        }
+
+        if ($tool) {
+          $isPs1 = ([IO.Path]::GetExtension($tool)).ToLowerInvariant() -eq '.ps1'
+          if ($isPs1) {
+            $out = & powershell -NoProfile -ExecutionPolicy Bypass -File $tool -Path $file 2>&1
+          } else {
+            $out = & $tool $file 2>&1
+          }
+          $txt = ($out -join "`n")
+          # Try JSON first
+          $parsed = $null
+          try { $parsed = $txt | ConvertFrom-Json -ErrorAction Stop } catch { $parsed = $null }
+          if ($parsed -ne $null) {
+            $spDetails.raw = $txt
+            if ($parsed.PSObject.Properties.Name -contains 'ok') { $spDetails.ok = [bool]$parsed.ok }
+            if ($parsed.PSObject.Properties.Name -contains 'issues') { $spDetails.issues = @($parsed.issues) }
+            $spOk = $true
+          } else {
+            # Try XML parse best-effort
+            try {
+              [xml]$xml = $txt
+              $spDetails.raw = $txt
+              # Minimal mapping: treat any <issue> nodes as issues entries
+              $issueNodes = @()
+              if ($xml -and $xml.SelectNodes('//issue')) { $issueNodes = $xml.SelectNodes('//issue') }
+              $spDetails.issues = @($issueNodes | ForEach-Object { $_.OuterXml })
+              $spDetails.ok = $true
+              $spOk = $true
+            } catch {
+              $spDetails.raw = $txt
+            }
+          }
+        } else {
+          $spDetails = @{ ok = $false; issues = @(); raw = 'SafePatch tool not found' }
+        }
+      } catch {
+        $spDetails = @{ ok = $false; issues = @(); raw = $_.Exception.Message }
+      }
+      $swSP.Stop()
+      $result.details.SafePatch = $spDetails
+      $steps += [ordered]@{ name = 'safepatch'; elapsed_ms = [int]$swSP.Elapsed.TotalMilliseconds; success = $spOk }
+    }
+
     # SPEC-1 integration (best-effort)
     $specPath = Join-Path $scriptRoot "SPEC-1-AI-Upkeep-Suite-v2-Guardrails-MCP/scripts/validation"
     if (Test-Path $specPath) {
@@ -260,8 +318,8 @@ foreach ($file in $Files) {
   }
 }
 
-# write results JSON (array)
-$results | ConvertTo-Json -Depth 10 | Out-File -FilePath $OutputPath -Encoding utf8
+# write results JSON as an array deterministically (even for single item)
+ConvertTo-Json -Depth 10 -InputObject $results | Out-File -FilePath $OutputPath -Encoding utf8
 
 # Also append each record to .runs/watch/<timestamp>.jsonl
 $recordsPath = Join-Path $OutputDir ($timestamp + ".jsonl")

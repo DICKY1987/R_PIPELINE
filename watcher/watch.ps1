@@ -12,7 +12,9 @@ param(
   [Parameter()][ValidateRange(1, 600000)][int]$DebounceMs = 500,
   [Parameter()][switch]$Once,
   [Parameter()][ValidateRange(1, 3600000)][int]$RunForMs,
-  [Parameter()][string]$OutputDir
+  [Parameter()][string]$OutputDir,
+  [Parameter()][switch]$EnableSafePatch,
+  [Parameter()][ValidateNotNullOrEmpty()][string]$SafePatchPath
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +26,10 @@ if (Test-Path $configFile) {
   try {
     $cfg = Get-Content $configFile -Raw | ConvertFrom-Json
     if ($cfg.debounce_ms) { $DebounceMs = [int]$cfg.debounce_ms }
+    if ($cfg.SafePatch) {
+      if ($cfg.SafePatch.enabled) { $EnableSafePatch = $true }
+      if ($cfg.SafePatch.path) { $SafePatchPath = [string]$cfg.SafePatch.path }
+    }
   } catch { }
 }
 
@@ -44,7 +50,15 @@ if ($PSBoundParameters.ContainsKey('RunForMs') -and $RunForMs -gt 0 -and -not $O
     $buildPathFixed = Join-Path $scriptRoot 'build.ps1'
     $outputDirFixed = if ($PSBoundParameters.ContainsKey('OutputDir') -and $OutputDir) { $OutputDir } else { Join-Path $repoRoot '.runs\\watch' }
     try {
-      & $buildPathFixed -Files $found -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+      if ($EnableSafePatch) {
+        if ($SafePatchPath) {
+          & $buildPathFixed -Files $found -Path $Path -Action "onchange" -OutputDir $outputDirFixed -EnableSafePatch -SafePatchPath $SafePatchPath
+        } else {
+          & $buildPathFixed -Files $found -Path $Path -Action "onchange" -OutputDir $outputDirFixed -EnableSafePatch
+        }
+      } else {
+        & $buildPathFixed -Files $found -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+      }
     } catch { }
   }
   Write-Host "Watcher bounded run complete."
@@ -96,7 +110,15 @@ function Enqueue-File {
     Write-Host "Detected changes: $($filtered -join ', ')"
     # call build.ps1 with explicit files
     try {
-      & $using:buildPathFixed -Files $filtered -Path $using:pathFixed -Action "onchange" -OutputDir $using:outputDirFixed
+      if ($using:EnableSafePatch) {
+        if ($using:SafePatchPath) {
+          & $using:buildPathFixed -Files $filtered -Path $using:pathFixed -Action "onchange" -OutputDir $using:outputDirFixed -EnableSafePatch -SafePatchPath $using:SafePatchPath
+        } else {
+          & $using:buildPathFixed -Files $filtered -Path $using:pathFixed -Action "onchange" -OutputDir $using:outputDirFixed -EnableSafePatch
+        }
+      } else {
+        & $using:buildPathFixed -Files $filtered -Path $using:pathFixed -Action "onchange" -OutputDir $using:outputDirFixed
+      }
     } catch {
       Write-Host "Build failed: $($_.Exception.Message)"
     }
@@ -145,7 +167,15 @@ if ($Once) {
     $outputDirFixed = if ($PSBoundParameters.ContainsKey('OutputDir') -and $OutputDir) { $OutputDir } else { Join-Path $repoRoot '.runs\\watch' }
     $buildPathFixed = Join-Path $scriptRoot 'build.ps1'
     try {
-      & $buildPathFixed -Files $unique -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+      if ($EnableSafePatch) {
+        if ($SafePatchPath) {
+          & $buildPathFixed -Files $unique -Path $Path -Action "onchange" -OutputDir $outputDirFixed -EnableSafePatch -SafePatchPath $SafePatchPath
+        } else {
+          & $buildPathFixed -Files $unique -Path $Path -Action "onchange" -OutputDir $outputDirFixed -EnableSafePatch
+        }
+      } else {
+        & $buildPathFixed -Files $unique -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+      }
     } catch { }
   }
   Write-Host "Once run complete."
