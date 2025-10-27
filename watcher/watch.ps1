@@ -11,7 +11,8 @@ param(
   [Parameter()][ValidateNotNullOrEmpty()][string]$Path = ".",
   [Parameter()][ValidateRange(1, 600000)][int]$DebounceMs = 500,
   [Parameter()][switch]$Once,
-  [Parameter()][ValidateRange(1, 3600000)][int]$RunForMs
+  [Parameter()][ValidateRange(1, 3600000)][int]$RunForMs,
+  [Parameter()][string]$OutputDir
 )
 
 Set-StrictMode -Version Latest
@@ -26,12 +27,37 @@ if (Test-Path $configFile) {
   } catch { }
 }
 
+# Fast-path bounded run for CI: poll and invoke once
+if ($PSBoundParameters.ContainsKey('RunForMs') -and $RunForMs -gt 0 -and -not $Once) {
+  Start-Sleep -Milliseconds $RunForMs
+  $include = @("*.py","*.ps1")
+  if ($cfg -and $cfg.include) { $include = $cfg.include }
+  # Normalize globstar patterns like **/*.ps1 to *.ps1 for Get-ChildItem -Include
+  $include = $include | ForEach-Object { $_ -replace '^\*\*[\\/]', '' }
+  $found = @()
+  foreach ($pat in $include) {
+    $found += Get-ChildItem -Path $Path -Recurse -File -Include $pat -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
+  }
+  $found = $found | Select-Object -Unique
+  if ($found.Count -gt 0) {
+    # invoke build once with all matches
+    $buildPathFixed = Join-Path $scriptRoot 'build.ps1'
+    $outputDirFixed = if ($PSBoundParameters.ContainsKey('OutputDir') -and $OutputDir) { $OutputDir } else { Join-Path $repoRoot '.runs\\watch' }
+    try {
+      & $buildPathFixed -Files $found -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+    } catch { }
+  }
+  Write-Host "Watcher bounded run complete."
+  exit 0
+}
+
 $pending = [System.Collections.ArrayList]::new()
 $timer = $null
 $locker = New-Object Object
-$outputDirFixed = Join-Path $repoRoot '.runs\\watch'
+$outputDirFixed = if ($PSBoundParameters.ContainsKey('OutputDir') -and $OutputDir) { $OutputDir } else { Join-Path $repoRoot '.runs\\watch' }
 $buildPathFixed = Join-Path $scriptRoot 'build.ps1'
 $pathFixed = $Path
+$script:lastChangedFiles = @()
 
 function Enqueue-File {
   param($fullPath)
@@ -50,6 +76,7 @@ function Enqueue-File {
     lock ($locker) {
       $filesToProcess = $pending.ToArray()
       $pending.Clear()
+      $script:lastChangedFiles = $filesToProcess
     }
     if ($filesToProcess.Count -eq 0) { return }
     # filter using watch.ignore if present
@@ -77,11 +104,11 @@ function Enqueue-File {
   $timer.Start()
 }
 
-# Setup FileSystemWatcher
-$fsw = New-Object System.IO.FileSystemWatcher $Path -Property @{
-  IncludeSubdirectories = $true
-  EnableRaisingEvents = $true
-}
+# Setup FileSystemWatcher (configure before enabling events)
+$fsw = New-Object System.IO.FileSystemWatcher $Path
+$fsw.IncludeSubdirectories = $true
+$fsw.NotifyFilter = [IO.NotifyFilters]::FileName -bor [IO.NotifyFilters]::LastWrite -bor [IO.NotifyFilters]::DirectoryName
+$fsw.EnableRaisingEvents = $false
 
 $onChange = {
   param($sender,$e)
@@ -99,6 +126,8 @@ $fsw.add_Changed($onChange)
 $fsw.add_Renamed($onChange)
 $fsw.add_Deleted($onChange)
 
+$fsw.EnableRaisingEvents = $true
+
 Write-Host "Watching '$Path' with debounce ${DebounceMs}ms. Press Enter to quit."
 
 # If running once, scan initial files and exit
@@ -106,28 +135,20 @@ if ($Once) {
   # pick matching include patterns
   $include = @("*.py","*.ps1")
   if ($cfg -and $cfg.include) { $include = $cfg.include }
+  $include = $include | ForEach-Object { $_ -replace '^\*\*[\\/]', '' }
   $found = @()
   foreach ($pat in $include) {
     $found += Get-ChildItem -Path $Path -Recurse -File -Include $pat -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }
   }
   if ($found.Count -gt 0) {
-    Enqueue-File ($found | Select-Object -Unique)
-    # wait briefly for timer to fire
-    Start-Sleep -Milliseconds ($DebounceMs + 200)
+    $unique = $found | Select-Object -Unique
+    $outputDirFixed = if ($PSBoundParameters.ContainsKey('OutputDir') -and $OutputDir) { $OutputDir } else { Join-Path $repoRoot '.runs\\watch' }
+    $buildPathFixed = Join-Path $scriptRoot 'build.ps1'
+    try {
+      & $buildPathFixed -Files $unique -Path $Path -Action "onchange" -OutputDir $outputDirFixed
+    } catch { }
   }
   Write-Host "Once run complete."
-  exit 0
-}
-
-# bounded run for test automation / CI
-if ($PSBoundParameters.ContainsKey('RunForMs') -and $RunForMs -gt 0) {
-  Start-Sleep -Milliseconds $RunForMs
-  # allow any in-flight debounce to flush
-  Start-Sleep -Milliseconds ($DebounceMs + 200)
-  $fsw.EnableRaisingEvents = $false
-  $fsw.Dispose()
-  if ($timer) { $timer.Stop(); $timer.Dispose() }
-  Write-Host "Watcher stopped after ${RunForMs}ms."
   exit 0
 }
 
