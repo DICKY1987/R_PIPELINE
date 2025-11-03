@@ -1,7 +1,46 @@
 Set-StrictMode -Version Latest
 
-[CmdletBinding()]
-param()
+[CmdletBinding(SupportsShouldProcess = $true)]
+param(
+    [Parameter()][ValidateSet('global', 'local')][string]$ConfigScope = 'global',
+    [Parameter()][switch]$ForceFallback
+)
+
+function Get-GitScopeArgument {
+    switch ($ConfigScope) {
+        'local' { return '--local' }
+        default { return '--global' }
+    }
+}
+
+function Get-ToolPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$CommandName,
+        [Parameter()][string[]]$CandidatePaths
+    )
+
+    $command = Get-Command -Name $CommandName -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+
+    foreach ($candidate in $CandidatePaths) {
+        if (-not $candidate) {
+            continue
+        }
+
+        if (Test-Path -LiteralPath $candidate) {
+            try {
+                return (Resolve-Path -LiteralPath $candidate -ErrorAction Stop).Path
+            } catch {
+                continue
+            }
+        }
+    }
+
+    return $null
+}
 
 function Set-PersistentGitConfig {
     [CmdletBinding()]
@@ -10,77 +49,92 @@ function Set-PersistentGitConfig {
         [Parameter(Mandatory)][string]$Value
     )
 
-    $current = git config --global --get $Key 2>$null
-    if ($current -ne $Value) {
-        git config --global $Key $Value | Out-Null
-    }
-}
-
-function Get-JqPath {
-    [CmdletBinding()]
-    param()
-
-    $command = Get-Command jq -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
+    $scopeArg = Get-GitScopeArgument
+    $current = & git config $scopeArg --get $Key 2>$null
+    if ($current -eq $Value) {
+        return
     }
 
-    $possible = @(
-        "$env:ProgramFiles\\Git\\usr\\bin\\jq.exe",
-        "$env:ChocolateyInstall\\bin\\jq.exe"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-
-    return $possible | Select-Object -First 1
-}
-
-function Get-YqPath {
-    [CmdletBinding()]
-    param()
-
-    $command = Get-Command yq -ErrorAction SilentlyContinue
-    if ($command) {
-        return $command.Source
+    if ($PSCmdlet.ShouldProcess("git config $scopeArg $Key", "set to '$Value'")) {
+        & git config $scopeArg $Key $Value | Out-Null
     }
-
-    $possible = @(
-        "$env:ProgramFiles\\Git\\usr\\bin\\yq.exe",
-        "$env:ChocolateyInstall\\bin\\yq.exe"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-
-    return $possible | Select-Object -First 1
 }
 
 function Register-StructuredMergeDriver {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][string]$Name,
-        [Parameter(Mandatory)][string]$Command,
-        [Parameter()][string]$Recursive = 'binary'
+        [Parameter()][string]$ToolPath,
+        [Parameter(Mandatory)][string]$StructuredCommandTemplate,
+        [Parameter(Mandatory)][string]$FallbackCommand
     )
 
+    $usingStructured = -not $ForceFallback.IsPresent -and $ToolPath
+    if ($usingStructured) {
+        $command = [string]::Format($StructuredCommandTemplate, $ToolPath)
+        Write-Verbose "Configured $Name merge driver using $ToolPath."
+    } else {
+        $command = $FallbackCommand
+        $toolDisplay = if ($ToolPath) { $ToolPath } else { 'not found' }
+        Write-Verbose "Using fallback merge driver for $Name (tool $toolDisplay)."
+    }
+
     Set-PersistentGitConfig -Key "merge.$Name.name" -Value "$Name structured merge"
-    Set-PersistentGitConfig -Key "merge.$Name.driver" -Value $Command
-    Set-PersistentGitConfig -Key "merge.$Name.recursive" -Value $Recursive
+    Set-PersistentGitConfig -Key "merge.$Name.driver" -Value $command
+    Set-PersistentGitConfig -Key "merge.$Name.recursive" -Value 'text'
 }
 
 Set-PersistentGitConfig -Key 'rerere.enabled' -Value 'true'
 Set-PersistentGitConfig -Key 'rerere.autoupdate' -Value 'true'
 
-$jqPath = Get-JqPath
-$yqPath = Get-YqPath
+$jqCandidates = @(
+    '/usr/bin/jq',
+    '/usr/local/bin/jq',
+    '/opt/homebrew/bin/jq'
+)
 
-if ($jqPath) {
-    $jsonCommand = "\"$jqPath\" -n --slurpfile base %O --slurpfile current %A --slurpfile other %B 'def merge(a;b): reduce b[] as \$item (a; . * \$item); merge(.; [\$base, \$current, \$other])'"
-    Register-StructuredMergeDriver -Name 'json-structured' -Command $jsonCommand -Recursive 'binary'
-} else {
-    Write-Verbose 'jq not available; JSON files will use default merge.'
+if ($env:ProgramFiles) {
+    $jqCandidates += @(
+        (Join-Path -Path $env:ProgramFiles -ChildPath 'Git\usr\bin\jq.exe'),
+        (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\jq.exe')
+    )
 }
 
-if ($yqPath) {
-    $yamlCommand = "\"$yqPath\" eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' %O %A %B"
-    Register-StructuredMergeDriver -Name 'yaml-structured' -Command $yamlCommand -Recursive 'binary'
-} else {
-    Write-Verbose 'yq not available; YAML files will use default merge.'
+if ($env:ChocolateyInstall) {
+    $jqCandidates += (Join-Path -Path $env:ChocolateyInstall -ChildPath 'bin\jq.exe')
 }
+
+$yqCandidates = @(
+    '/usr/bin/yq',
+    '/usr/local/bin/yq',
+    '/opt/homebrew/bin/yq'
+)
+
+if ($env:ProgramFiles) {
+    $yqCandidates += @(
+        (Join-Path -Path $env:ProgramFiles -ChildPath 'Git\usr\bin\yq.exe'),
+        (Join-Path -Path $env:ProgramFiles -ChildPath 'PowerShell\7\yq.exe')
+    )
+}
+
+if ($env:ChocolateyInstall) {
+    $yqCandidates += (Join-Path -Path $env:ChocolateyInstall -ChildPath 'bin\yq.exe')
+}
+
+$jqPath = if ($ForceFallback) { $null } else { Get-ToolPath -CommandName 'jq' -CandidatePaths $jqCandidates }
+$yqPath = if ($ForceFallback) { $null } else { Get-ToolPath -CommandName 'yq' -CandidatePaths $yqCandidates }
+
+$jsonStructuredTemplate = @'
+"{0}" --null-input --slurpfile base %O --slurpfile ours %A --slurpfile theirs %B "def fold(inputs): reduce inputs[] as $item ({{}}; . * $item); fold([$base[0], $ours[0], $theirs[0]])"
+'@
+
+$yamlStructuredTemplate = @'
+"{0}" eval-all "select(fileIndex == 0) * select(fileIndex == 1) * select(fileIndex == 2)" %O %A %B
+'@
+
+$fallbackCommand = 'git merge-file -L current -L base -L other %A %O %B'
+
+Register-StructuredMergeDriver -Name 'json-structured' -ToolPath $jqPath -StructuredCommandTemplate $jsonStructuredTemplate -FallbackCommand $fallbackCommand
+Register-StructuredMergeDriver -Name 'yaml-structured' -ToolPath $yqPath -StructuredCommandTemplate $yamlStructuredTemplate -FallbackCommand $fallbackCommand
 
 Write-Verbose 'Merge driver configuration complete.'
