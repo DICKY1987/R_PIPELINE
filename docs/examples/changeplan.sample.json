@@ -1,0 +1,15 @@
+{
+  "id": "example-123",
+  "summary": "Sample change plan for dry-run",
+  "steps": [
+    {
+      "description": "Run SafePatch",
+      "owner": "automation",
+      "status": "pending"
+    }
+  ],
+  "riskAssessment": {
+    "level": "low",
+    "mitigations": ["SafePatch pipeline", "Manual review"]
+  }
+}

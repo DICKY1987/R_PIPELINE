@@ -1,0 +1,59 @@
+{
+  "servers": [
+    {
+      "name": "python-format",
+      "command": ["ruff", "format"],
+      "docs": "docs/SAFE_PATCH_RULES.md#format"
+    },
+    {
+      "name": "python-lint",
+      "command": ["ruff", "check"],
+      "docs": "docs/SAFE_PATCH_RULES.md#lint"
+    },
+    {
+      "name": "python-type",
+      "command": ["mypy"],
+      "docs": "docs/SAFE_PATCH_RULES.md#type"
+    },
+    {
+      "name": "python-test",
+      "command": ["pytest"],
+      "docs": "docs/SAFE_PATCH_RULES.md#test"
+    },
+    {
+      "name": "powershell-analyze",
+      "command": ["pwsh", "-File", "tools/Invoke-PSScriptAnalyzer.ps1"],
+      "docs": "docs/SAFE_PATCH_RULES.md#lint"
+    },
+    {
+      "name": "powershell-test",
+      "command": ["pwsh", "-File", "tools/Invoke-Pester.ps1"],
+      "docs": "docs/SAFE_PATCH_RULES.md#test"
+    },
+    {
+      "name": "javascript-lint",
+      "command": ["npm", "run", "lint"],
+      "docs": "docs/SAFE_PATCH_RULES.md#lint"
+    },
+    {
+      "name": "javascript-format",
+      "command": ["npm", "run", "format"],
+      "docs": "docs/SAFE_PATCH_RULES.md#format"
+    },
+    {
+      "name": "sast",
+      "command": ["semgrep", "--config", "p/default"],
+      "docs": "docs/SAFE_PATCH_RULES.md#sast"
+    },
+    {
+      "name": "policy",
+      "command": ["conftest", "test", "docs/policy"],
+      "docs": "docs/SAFE_PATCH_RULES.md#policy"
+    },
+    {
+      "name": "secrets",
+      "command": ["gitleaks", "detect", "--no-banner"],
+      "docs": "docs/SAFE_PATCH_RULES.md#secrets"
+    }
+  ]
+}

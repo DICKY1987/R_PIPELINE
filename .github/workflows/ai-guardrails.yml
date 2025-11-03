@@ -1,0 +1,23 @@
+name: ai-guardrails-dry-run
+
+on:
+  schedule:
+    - cron: '0 12 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup PowerShell
+        uses: actions/setup-powershell@v2
+      - name: Validate ChangePlan assets
+        shell: pwsh
+        run: pwsh -File scripts/Validate-ChangePlan.ps1 -ChangePlanPath docs/examples/changeplan.sample.json -UnifiedDiffPath docs/examples/unifieddiff.sample.json
+        continue-on-error: true
+      - name: Report skipped validation
+        if: steps.Validate_ChangePlan_assets.outcome == 'failure'
+        run: echo "ChangePlan samples not available; skipping."

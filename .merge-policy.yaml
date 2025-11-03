@@ -1,0 +1,20 @@
+merge-strategies:
+  default: squash
+  protected:
+    - path: docs/
+      strategy: merge
+    - path: scripts/
+      strategy: rebase
+verification-gates:
+  - name: SafePatch
+    description: Ensure SafePatch pipeline succeeds locally prior to merge.
+    documentation: docs/SAFE_PATCH_RULES.md
+  - name: Merge-Train
+    description: Require merge-train workflow to complete with no quarantined changes.
+    documentation: docs/ci/merge-train.md
+audit-log:
+  storage: artifacts
+  retention-days: 30
+  reviewers:
+    - docs/ci/protections.md
+    - docs/merge/README.md
