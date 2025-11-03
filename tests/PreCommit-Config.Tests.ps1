@@ -12,6 +12,15 @@ Describe 'Pre-Commit Configuration' {
     $cfg | Should -Match 'commitizen-tools/commitizen'
     $cfg | Should -Match 'id:\s*pwsh-check-one'
     $cfg | Should -Match 'scripts/precommit/check-one.ps1'
+    $cfg | Should -Match 'pre-commit/mirrors-isort'
+  }
+
+  It 'aligns with SafePatch tooling by including mypy, ESLint, Prettier, and PSScriptAnalyzer hooks' {
+    $cfg = Get-Content -LiteralPath '.pre-commit-config.yaml' -Raw
+    $cfg | Should -Match 'pre-commit/mirrors-mypy'
+    $cfg | Should -Match 'pre-commit/mirrors-eslint'
+    $cfg | Should -Match 'pre-commit/mirrors-prettier'
+    $cfg | Should -Match 'Invoke-ScriptAnalyzer'
   }
 
   It 'has the custom hook script with strict mode and CmdletBinding' {

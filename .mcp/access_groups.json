@@ -1,0 +1,39 @@
+{
+  "groups": {
+    "reader": {
+      "permissions": ["list", "describe"],
+      "tools": ["python-format", "python-lint", "python-type"]
+    },
+    "contributor": {
+      "permissions": ["list", "describe", "invoke"],
+      "tools": [
+        "python-format",
+        "python-lint",
+        "python-type",
+        "python-test",
+        "powershell-analyze",
+        "powershell-test",
+        "javascript-lint",
+        "javascript-format",
+        "sast",
+        "policy"
+      ]
+    },
+    "maintainer": {
+      "permissions": ["list", "describe", "invoke", "administer"],
+      "tools": [
+        "python-format",
+        "python-lint",
+        "python-type",
+        "python-test",
+        "powershell-analyze",
+        "powershell-test",
+        "javascript-lint",
+        "javascript-format",
+        "sast",
+        "policy",
+        "secrets"
+      ]
+    }
+  }
+}

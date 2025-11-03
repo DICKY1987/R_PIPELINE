@@ -1,0 +1,11 @@
+* text=auto eol=lf
+*.ps1 text eol=lf diff
+*.psm1 text eol=lf diff
+*.py text eol=lf diff
+*.json text merge=json-structured diff
+*.jsonc text merge=json-structured diff
+*.yaml text merge=yaml-structured diff
+*.yml text merge=yaml-structured diff
+*.psd1 text eol=lf diff
+*.png binary
+*.jpg binary

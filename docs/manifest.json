@@ -1,0 +1,29 @@
+{
+  "files": [
+    ".merge-policy.yaml",
+    ".gitattributes",
+    "CODEOWNERS",
+    ".mcp/mcp_servers.json",
+    ".mcp/access_groups.json",
+    "docs/merge/README.md",
+    "docs/ci/merge-train.md",
+    "docs/workflows/worktrees.md",
+    "docs/mcp/overview.md",
+    "docs/ai/guardrails.md",
+    "docs/ci/protections.md",
+    "docs/setup/windows.md",
+    "docs/setup/linux.md",
+    "docs/setup/macos.md",
+    "docs/schemas/changeplan.schema.json",
+    "docs/schemas/unifieddiff.schema.json",
+    "docs/policy/changeplan.rego",
+    "scripts/setup-merge-drivers.ps1",
+    "scripts/New-ToolWorktree.ps1",
+    "scripts/Initialize-McpEnvironment.ps1",
+    "scripts/Validate-ChangePlan.ps1",
+    "scripts/github/Configure-BranchProtection.ps1",
+    "tools/Invoke-AIToolGuard.ps1",
+    ".github/workflows/merge-train.yml",
+    ".github/workflows/ai-guardrails.yml"
+  ]
+}

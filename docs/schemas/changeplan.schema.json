@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ChangePlan",
+  "type": "object",
+  "required": ["id", "summary", "steps", "riskAssessment"],
+  "properties": {
+    "id": {"type": "string"},
+    "summary": {"type": "string", "minLength": 10},
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["description", "owner"],
+        "properties": {
+          "description": {"type": "string"},
+          "owner": {"type": "string"},
+          "status": {"type": "string", "enum": ["pending", "complete", "blocked"]}
+        }
+      }
+    },
+    "riskAssessment": {
+      "type": "object",
+      "required": ["level", "mitigations"],
+      "properties": {
+        "level": {"type": "string", "enum": ["low", "medium", "high"]},
+        "mitigations": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}

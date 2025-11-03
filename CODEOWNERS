@@ -1,0 +1,6 @@
+# Default owners
+* @repo-maintainers
+
+docs/merge/ @docs-team
+scripts/ @automation-team
+.github/workflows/ @ci-team

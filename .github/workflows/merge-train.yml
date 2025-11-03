@@ -1,0 +1,57 @@
+name: merge-train
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'
+  push:
+    branches:
+      - main
+      - release/*
+
+permissions:
+  contents: read
+  actions: write
+  checks: write
+
+jobs:
+  merge-train:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Restore rerere cache
+        uses: actions/cache@v4
+        with:
+          path: .git/rr-cache
+          key: rerere-${{ github.ref }}
+          restore-keys: |
+            rerere-
+
+      - name: Setup PowerShell
+        uses: actions/setup-powershell@v2
+
+      - name: PreFlight check
+        shell: pwsh
+        run: pwsh -File scripts/PreFlight-Check.ps1
+
+      - name: Run merge train
+        shell: pwsh
+        run: pwsh -File scripts/AutoMerge-Workstream.ps1
+
+      - name: Upload audit logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: merge-train-logs
+          path: logs/
+
+      - name: Save rerere cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .git/rr-cache
+          key: rerere-${{ github.run_id }}

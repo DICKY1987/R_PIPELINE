@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UnifiedDiff",
+  "type": "object",
+  "required": ["files"],
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "hunks"],
+        "properties": {
+          "path": {"type": "string"},
+          "hunks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["header", "changes"],
+              "properties": {
+                "header": {"type": "string"},
+                "changes": {
+                  "type": "array",
+                  "items": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

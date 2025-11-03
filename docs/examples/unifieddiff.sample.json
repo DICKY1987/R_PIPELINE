@@ -1,0 +1,13 @@
+{
+  "files": [
+    {
+      "path": "README.md",
+      "hunks": [
+        {
+          "header": "@@ -1,2 +1,5 @@",
+          "changes": ["+Added merge governance section"]
+        }
+      ]
+    }
+  ]
+}
